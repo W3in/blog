@@ -1,10 +1,11 @@
 class Api::ArticlesController < ActionController::API
   def index
-    render json: Article.all
+    # Same rule as the web view: hide archived, but keep articles whose status is still NULL
+    render json: Article.where.not(status: "archived").or(Article.where(status: nil))
   end
 
   def show
-    render json: Article.find(params[:id])
+    render json: Article.find(params[:id]), include: :comments
   end
 
   def create
