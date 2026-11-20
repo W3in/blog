@@ -12,9 +12,8 @@ export function useAuth() {
         if (!token.value) return (user.value = null)
         try {
             user.value = await $fetch<User>('/api/session', { headers: headers.value })
-        } catch {
-            // Token no longer valid (e.g. logged out in Postman): forget it
-            token.value = null
+        } catch (e: any) {
+            if (e.status === 401) token.value = null
             user.value = null
         }
     }

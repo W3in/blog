@@ -6,27 +6,47 @@ const { user, logout } = useAuth()
   <div class="site">
     <header class="site-header">
       <div class="site-header-inner">
-        <NuxtLink to="/" class="brand">My Blog</NuxtLink>
-        <!-- custom: NuxtLink gives the href, a-button draws it, so it is one real <a> (no button inside a link) -->
-        <NuxtLink v-slot="{ href, navigate }" to="/articles/new" custom>
-          <a-space>
-            <template v-if="user">
-              <span class="hello">Xin chào, {{ user.name }}</span>
-              <NuxtLink v-slot="{ href, navigate }" to="/articles/new" custom>
-                <a-button type="primary" :href="href" @click="navigate"><PlusOutlined /> New Article</a-button>
-              </NuxtLink>
-              <a-button @click="logout"><LogoutOutlined /> Đăng xuất</a-button>
-            </template>
-            <template v-else>
-              <NuxtLink v-slot="{ href, navigate }" to="/login" custom>
-                <a-button :href="href" @click="navigate">Đăng nhập</a-button>
-              </NuxtLink>
-              <NuxtLink v-slot="{ href, navigate }" to="/register" custom>
-                <a-button type="primary" :href="href" @click="navigate">Đăng ký</a-button>
-              </NuxtLink>
-            </template>
-          </a-space>
+        <NuxtLink to="/" class="brand">
+          <span class="brand-icon"><ReadOutlined /></span>
+          My Blog
         </NuxtLink>
+
+        <!-- custom: NuxtLink gives the href, a-button draws it, so it is one real <a> (no button inside a link) -->
+        <a-space :size="12">
+          <template v-if="user">
+            <NuxtLink v-slot="{ href, navigate }" to="/articles/new" custom>
+              <!-- aria-label: on phones the text is hidden, screen readers still need a name -->
+              <a-button type="primary" :href="href" aria-label="New Article" @click="navigate">
+                <PlusOutlined /><span class="hide-mobile">New Article</span>
+              </a-button>
+            </NuxtLink>
+
+            <!-- Name + logout live in a menu, so the header stays one short row on phones -->
+            <a-dropdown placement="bottomRight" :trigger="['click']">
+              <button type="button" class="user-menu">
+                <a-avatar size="small" :style="{ backgroundColor: '#1677ff' }">{{ user.name[0]?.toUpperCase() }}</a-avatar>
+                <span class="hide-mobile">{{ user.name }}</span>
+                <DownOutlined class="caret" />
+              </button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item key="email" disabled>{{ user.email }}</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="logout" danger @click="logout"><LogoutOutlined /> Đăng xuất</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </template>
+
+          <template v-else>
+            <NuxtLink v-slot="{ href, navigate }" to="/login" custom>
+              <a-button type="text" :href="href" @click="navigate">Đăng nhập</a-button>
+            </NuxtLink>
+            <NuxtLink v-slot="{ href, navigate }" to="/register" custom>
+              <a-button type="primary" :href="href" @click="navigate">Đăng ký</a-button>
+            </NuxtLink>
+          </template>
+        </a-space>
       </div>
     </header>
 
@@ -46,28 +66,71 @@ const { user, logout } = useAuth()
   flex-direction: column;
 }
 
+/* Slightly see-through white + blur: content scrolling under the sticky header stays faintly visible */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid #f0f0f0;
 }
 
 .site-header-inner {
   max-width: 800px;
+  height: 60px;
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 20px;
   font-weight: 700;
-  color: #1677ff;
+  color: rgba(0, 0, 0, 0.88);
   text-decoration: none;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #1677ff;
+  color: #fff;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Plain <button> styled by us: a-button would fight our flex layout for avatar + name + caret */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px 0 4px;
+  border: 1px solid #f0f0f0;
+  border-radius: 18px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.user-menu:hover,
+.user-menu:focus-visible {
+  border-color: #1677ff;
+}
+
+.caret {
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.45);
 }
 
 .site-content {
@@ -78,5 +141,12 @@ const { user, logout } = useAuth()
   padding: 24px 16px;
   text-align: center;
   color: rgba(0, 0, 0, 0.45);
+}
+
+/* Phones: icon-only "+" button and avatar-only menu so everything fits in 375px */
+@media (max-width: 576px) {
+  .hide-mobile {
+    display: none;
+  }
 }
 </style>

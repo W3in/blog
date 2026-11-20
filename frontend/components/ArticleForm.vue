@@ -16,27 +16,19 @@ const form = reactive<Article>({
 })
 
 const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, label: s }))
-
-// Rails sends { title: ["can't be blank"] }: turn it into the props a-form-item expects
-function fieldState(field: string, label: string) {
-  const msgs = props.errors?.[field]
-  return msgs?.length
-    ? { validateStatus: 'error' as const, help: msgs.map(m => `${label} ${m}`).join(', ') }
-    : {}
-}
 </script>
 
 <template>
   <a-form layout="vertical" :model="form" @finish="emit('submit', { ...form })">
-    <a-form-item label="Title" v-bind="fieldState('title', 'Title')">
+    <a-form-item label="Title" v-bind="fieldState(errors, 'title', 'Title')">
       <a-input v-model:value="form.title" placeholder="Tiêu đề bài viết" />
     </a-form-item>
 
-    <a-form-item label="Body" v-bind="fieldState('body', 'Body')">
+    <a-form-item label="Body" v-bind="fieldState(errors, 'body', 'Body')">
       <a-textarea v-model:value="form.body" :rows="8" placeholder="Nội dung (ít nhất 10 ký tự)" />
     </a-form-item>
 
-    <a-form-item label="Status" v-bind="fieldState('status', 'Status')">
+    <a-form-item label="Status" v-bind="fieldState(errors, 'status', 'Status')">
       <!-- fixed id: otherwise a-select makes a different id on server and browser (hydration warning) -->
       <a-select id="article-status" v-model:value="form.status" :options="statusOptions" />
     </a-form-item>

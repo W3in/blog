@@ -1,11 +1,12 @@
 <script setup lang="ts">
 const errors = ref<Record<string, string[]>>({})
-
+const { headers } = useAuth()
 async function create(article: object) {
   try {
     const created = await $fetch<{ id: number }>('/api/articles', {
       method: 'POST',
-      body: { article }
+      body: { article },
+      headers: headers.value
     })
     await navigateTo(`/articles/${created.id}`)
   } catch (e: any) {

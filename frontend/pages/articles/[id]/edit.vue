@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const id = useRoute().params.id
-const { data: article, error } = await useFetch<any>(`/api/articles/${id}`)
+const { headers } = useAuth()
+const { data: article, error } = await useFetch<any>(`/api/articles/${id}`, { headers })
 const errors = ref<Record<string, string[]>>({})
 
 if (error.value){
@@ -13,7 +14,7 @@ if (error.value){
 
 async function update(changes: object) {
   try {
-    await $fetch(`/api/articles/${id}`, { method: 'PATCH', body: { article: changes } })
+    await $fetch(`/api/articles/${id}`, { method: 'PATCH', body: { article: changes }, headers: headers.value })
     await navigateTo(`/articles/${id}`)
   } catch (e: any) {
     if (e.status !== 422) throw e

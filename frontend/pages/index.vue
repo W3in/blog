@@ -1,7 +1,11 @@
 <script setup lang="ts">
-type Article = { id: number; title: string; body: string; status: string | null }
-
-const { data: articles, error } = await useFetch<Article[]>('/api/articles')
+type Article = {
+  id: number; title: string; body: string; status: string | null
+  created_at: string; updated_at: string
+  user: { id: number; name: string } | null
+}
+const { headers } = useAuth()
+const { data: articles, error } = await useFetch<Article[]>('/api/articles', { headers })
 </script>
 
 <template>
@@ -16,6 +20,10 @@ const { data: articles, error } = await useFetch<Article[]>('/api/articles')
             <a-list-item-meta>
               <template #description>
                 <div class="body-preview">{{ item.body }}</div>
+                <div class="item-meta">
+                  <span><UserOutlined /> {{ item.user?.name ?? 'Không rõ' }}</span>
+                  <span><CalendarOutlined /> {{ formatDate(item.created_at) }}</span>
+                </div>
               </template>
               <template #title>
                 <NuxtLink :to="`/articles/${item.id}`" class="title-link">{{ item.title }}</NuxtLink>
@@ -46,6 +54,16 @@ const { data: articles, error } = await useFetch<Article[]>('/api/articles')
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Author + date under the preview: smaller and lighter than the body text */
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
 }
 
 /* Phones: give the text the full width */
