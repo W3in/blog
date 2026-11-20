@@ -17,7 +17,10 @@ async function create(article: object) {
 
 <template>
   <main>
-    <h1>New Article</h1>
-    <ArticleForm :errors="errors" submit-label="Create Article" @submit="create" />
+    <NuxtLink to="/" class="back-link"><ArrowLeftOutlined /> Tất cả bài viết</NuxtLink>
+    <h1 class="page-title">New Article</h1>
+    <a-card>
+      <ArticleForm :errors="errors" submit-label="Create Article" @submit="create" />
+    </a-card>
   </main>
 </template>

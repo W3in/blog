@@ -24,7 +24,10 @@ async function update(changes: object) {
 
 <template>
   <main>
-    <h1>Edit Article</h1>
-    <ArticleForm v-if="article" :article="article" :errors="errors" submit-label="Update Article" @submit="update" />
+    <NuxtLink :to="`/articles/${id}`" class="back-link"><ArrowLeftOutlined /> Quay lại bài viết</NuxtLink>
+    <h1 class="page-title">Edit Article</h1>
+    <a-card>
+      <ArticleForm v-if="article" :article="article" :errors="errors" submit-label="Update Article" @submit="update" />
+    </a-card>
   </main>
 </template>

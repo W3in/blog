@@ -14,32 +14,33 @@ const form = reactive<Article>({
   body: props.article?.body ?? '',
   status: props.article?.status ?? 'public'
 })
+
+const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, label: s }))
+
+// Rails sends { title: ["can't be blank"] }: turn it into the props a-form-item expects
+function fieldState(field: string, label: string) {
+  const msgs = props.errors?.[field]
+  return msgs?.length
+    ? { validateStatus: 'error' as const, help: msgs.map(m => `${label} ${m}`).join(', ') }
+    : {}
+}
 </script>
 
 <template>
-  <form @submit.prevent="emit('submit', { ...form })">
-    <div>
-      <label>Title</label><br>
-      <input v-model="form.title" type="text">
-      <div v-for="m in errors?.title" :key="m">Title {{ m }}</div>
-    </div>
+  <a-form layout="vertical" :model="form" @finish="emit('submit', { ...form })">
+    <a-form-item label="Title" v-bind="fieldState('title', 'Title')">
+      <a-input v-model:value="form.title" placeholder="Tiêu đề bài viết" />
+    </a-form-item>
 
-    <div>
-      <label>Body</label><br>
-      <textarea v-model="form.body" />
-      <div v-for="m in errors?.body" :key="m">Body {{ m }}</div>
-    </div>
+    <a-form-item label="Body" v-bind="fieldState('body', 'Body')">
+      <a-textarea v-model:value="form.body" :rows="8" placeholder="Nội dung (ít nhất 10 ký tự)" />
+    </a-form-item>
 
-    <div>
-      <label>Status</label><br>
-      <select v-model="form.status">
-        <option>public</option>
-        <option>private</option>
-        <option>archived</option>
-      </select>
-      <div v-for="m in errors?.status" :key="m">Status {{ m }}</div>
-    </div>
+    <a-form-item label="Status" v-bind="fieldState('status', 'Status')">
+      <!-- fixed id: otherwise a-select makes a different id on server and browser (hydration warning) -->
+      <a-select id="article-status" v-model:value="form.status" :options="statusOptions" />
+    </a-form-item>
 
-    <button type="submit">{{ submitLabel ?? 'Save' }}</button>
-  </form>
+    <a-button type="primary" html-type="submit">{{ submitLabel ?? 'Save' }}</a-button>
+  </a-form>
 </template>

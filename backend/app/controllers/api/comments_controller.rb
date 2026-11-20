@@ -1,7 +1,9 @@
-class Api::CommentsController < ActionController::API
+class Api::CommentsController < Api::BaseController
+  before_action :require_login
+
   def create
-    article = Article.find(params[:article_id])
-    comment = article.comments.new(comment_params)
+    article = Article.visible_to(current_user).find(params[:article_id])
+    comment = article.comments.new(comment_params.merge(user: current_user, commenter: current_user.name))
 
     if comment.save
       render json: comment, status: :created
@@ -11,12 +13,14 @@ class Api::CommentsController < ActionController::API
   end
 
   def destroy
-    Article.find(params[:article_id]).comments.find(params[:id]).destroy
+    comment = Article.visible_to(current_user).find(params[:article_id]).comments.find(params[:id])
+    return head :forbidden unless comment.user == current_user || current_user.admin?
+    comment.destroy
     head :no_content
   end
 
   private
     def comment_params
-      params.require(:comment).permit(:commenter, :body, :status)
+      params.require(:comment).permit(:body, :status)
     end
 end
