@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'guest' })
 const { login } = useAuth()
 const form = reactive({ email: '', password: '' })
 const error = ref('')
@@ -9,7 +10,8 @@ async function submit() {
   error.value = ''
   try {
     await login(form.email, form.password)
-    await navigateTo('/')
+    const redirect = useRoute().query.redirect
+    await navigateTo(typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/')
   } catch (e: any) {
     if (e.status !== 401) throw e
     // Same message for wrong email and wrong password, so nobody can probe which emails exist

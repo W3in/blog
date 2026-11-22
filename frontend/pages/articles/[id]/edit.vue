@@ -1,6 +1,7 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'auth' })
 const id = useRoute().params.id
-const { headers } = useAuth()
+const { headers, user } = useAuth()
 const { data: article, error } = await useFetch<any>(`/api/articles/${id}`, { headers })
 const errors = ref<Record<string, string[]>>({})
 
@@ -10,6 +11,10 @@ if (error.value){
     statusMessage: 'Bài viết này không tồn tại.',
     fatal: true
   })
+}
+
+if (article.value.user_id !== user.value?.id) {
+  throw createError({ statusCode: 403, statusMessage: 'Bạn không phải tác giả bài này.', fatal: true })
 }
 
 async function update(changes: object) {

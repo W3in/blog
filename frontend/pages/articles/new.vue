@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'auth' })
 const errors = ref<Record<string, string[]>>({})
 const { headers } = useAuth()
 async function create(article: object) {

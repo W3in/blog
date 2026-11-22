@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ middleware: 'guest' })
 const { register } = useAuth()
 const form = reactive({ name: '', email: '', password: '', password_confirmation: '' })
 const errors = ref<Record<string, string[]>>({})

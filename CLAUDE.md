@@ -28,7 +28,9 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 
 - Nuxt gọi Rails qua proxy `routeRules: { '/api/**': { proxy: 'http://localhost:3000/api/**' } }` trong `frontend/nuxt.config.ts` → cùng origin, không cần CORS.
 - Ant Design: `antd: { extractStyle: true }` + `<AExtractStyle>` trong `app.vue` để SSR có CSS (tránh trang nháy). `a-select` phải có `id` cố định (tránh lỗi hydration).
-- Giao diện HTML cũ của Rails (`/articles`, `.html.erb`) vẫn còn, **không có kiểm tra đăng nhập**.
+- Giao diện HTML cũ của Rails (`/articles`, `.html.erb`) **đã xóa** (lộ bài `private`/`archived` cho khách, mật khẩu Basic Auth `dhh/secret` nằm trong code). Rails giờ chỉ là API dưới `/api`.
+- Windows: chạy `ruby bin/rails s` (Windows không hiểu shebang); `config/puma.rb` tắt `plugin :tmp_restart` trên Windows (mtime lần đầu làm tròn giây → Puma tự restart rồi sập).
+- Frontend: `middleware/auth.ts` (khách → `/login?redirect=...`), `middleware/guest.ts` (đã đăng nhập → `/`); `edit.vue` ném 403 nếu không phải tác giả. Chỉ để giao diện gọn, Rails vẫn chặn thật.
 
 ## Backend (Rails API)
 
@@ -66,9 +68,8 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 
 ## Tiến độ
 
-Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối".
+Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối" → 6 (route middleware) → xóa giao diện HTML cũ.
 
 Tiếp theo:
-1. **Bước 6**: route middleware chặn khách vào `/articles/new` và người không phải tác giả vào `/articles/:id/edit`; trang login/register chuyển về `/` nếu đã đăng nhập.
-2. **Quên mật khẩu**: `generates_token_for :password_reset` (Rails 7.1), ActionMailer (dev: xem email trong log), trang nhập email + trang đặt lại mật khẩu.
-3. Có thể: API trả 401 khi gửi token sai (hiện đang lặng lẽ coi là khách); `timeZone: 'Asia/Ho_Chi_Minh'` cho formatDate khi deploy; ý nghĩa `status` của comment; xóa/khóa giao diện HTML cũ của Rails; sửa `test/fixtures/users.yml` (2 user trùng email sẽ làm `bin/rails test` lỗi).
+1. **Quên mật khẩu**: `generates_token_for :password_reset` (Rails 7.1), ActionMailer (dev: xem email trong log), trang nhập email + trang đặt lại mật khẩu.
+2. Có thể: API trả 401 khi gửi token sai (hiện đang lặng lẽ coi là khách); `timeZone: 'Asia/Ho_Chi_Minh'` cho formatDate khi deploy; ý nghĩa `status` của comment; sửa `test/fixtures/users.yml` (2 user trùng email sẽ làm `bin/rails test` lỗi).

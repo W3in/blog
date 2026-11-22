@@ -41,4 +41,5 @@ environment rails_env
 pidfile ENV.fetch("PIDFILE") { "tmp/pids/server.pid" }
 
 # Allow puma to be restarted by `bin/rails restart` command.
-plugin :tmp_restart
+# Windows: first mtime read is whole seconds, later ones are not, so this plugin restarts at boot and crashes
+plugin :tmp_restart unless Gem.win_platform?
