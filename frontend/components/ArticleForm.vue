@@ -14,8 +14,6 @@ const form = reactive<Article>({
   body: props.article?.body ?? '',
   status: props.article?.status ?? 'public'
 })
-
-const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, label: s }))
 </script>
 
 <template>
@@ -28,7 +26,7 @@ const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, la
       <a-textarea v-model:value="form.body" :rows="8" placeholder="Nội dung (ít nhất 10 ký tự)" />
     </a-form-item>
 
-    <a-form-item label="Status" v-bind="fieldState(errors, 'status', 'Status')">
+    <a-form-item label="Ai được xem" v-bind="fieldState(errors, 'status', 'Status')">
       <!-- fixed id: otherwise a-select makes a different id on server and browser (hydration warning) -->
       <a-select id="article-status" v-model:value="form.status" :options="statusOptions" />
     </a-form-item>

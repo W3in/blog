@@ -7,7 +7,7 @@ class Api::ArticlesController < Api::BaseController
 
   def index
     # includes(:user): load all authors in one query instead of one query per article (N+1)
-    render json: Article.visible_to(current_user).includes(:user), include: { user: AUTHOR_JSON }
+    render json: Article.visible_to(current_user).includes(:user).order(created_at: :desc), include: { user: AUTHOR_JSON }
   end
 
   def show
@@ -20,19 +20,17 @@ class Api::ArticlesController < Api::BaseController
     if article.save
       render json: article, status: :created
     else
-      render json: article.errors, status: :unprocessable_entity
+      render json: article.errors, status: :unprocessable_content
     end
   end
 
   def update
-    return head :forbidden unless @article.user == current_user 
+    return head :forbidden unless @article.user == current_user
 
-    article = Article.find(params[:id])
-
-    if article.update(article_params)
-      render json: article
+    if @article.update(article_params)
+      render json: @article
     else
-      render json: article.errors, status: :unprocessable_entity
+      render json: @article.errors, status: :unprocessable_content
     end
   end
   

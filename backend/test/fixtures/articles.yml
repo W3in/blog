@@ -1,9 +1,19 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# One article per status, all written by Alice
 
-one:
-  title: MyString
-  body: MyText
+public_post:
+  title: Public post
+  body: Everyone can read this article.
+  status: public
+  user: alice
 
-two:
-  title: MyString
-  body: MyText
+private_post:
+  title: Private post
+  body: Only logged-in members can read this.
+  status: private
+  user: alice
+
+archived_post:
+  title: Archived post
+  body: Only Alice and admins can read this.
+  status: archived
+  user: alice

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 type Article = {
-  id: number; title: string; body: string; status: string | null
+  id: number; title: string; body: string; status: string
   created_at: string; updated_at: string
   user: { id: number; name: string } | null
 }
@@ -27,6 +27,8 @@ const { data: articles, error } = await useFetch<Article[]>('/api/articles', { h
               </template>
               <template #title>
                 <NuxtLink :to="`/articles/${item.id}`" class="title-link">{{ item.title }}</NuxtLink>
+                <!-- Only members/authors/admins get non-public articles: tag them so they know who else can see them -->
+                <a-tag v-if="item.status !== 'public'" :color="statusColor[item.status]" class="status-tag">{{ statusLabel[item.status] }}</a-tag>
               </template>
               <template #avatar>
                 <a-avatar :style="{ backgroundColor: '#1677ff' }">{{ item.title[0]?.toUpperCase() }}</a-avatar>
@@ -46,6 +48,11 @@ const { data: articles, error } = await useFetch<Article[]>('/api/articles', { h
   display: inline-block;
   line-height: 32px;
   font-size: 16px;
+}
+
+.status-tag {
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 /* Long article bodies: show at most 2 lines in the list */

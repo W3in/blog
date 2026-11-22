@@ -8,7 +8,7 @@ class Api::CommentsController < Api::BaseController
     if comment.save
       render json: comment, status: :created
     else
-      render json: comment.errors, status: :unprocessable_entity
+      render json: comment.errors, status: :unprocessable_content
     end
   end
 
@@ -21,6 +21,6 @@ class Api::CommentsController < Api::BaseController
 
   private
     def comment_params
-      params.require(:comment).permit(:body, :status)
+      params.require(:comment).permit(:body)
     end
 end

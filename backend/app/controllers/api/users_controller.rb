@@ -5,7 +5,7 @@ class Api::UsersController < Api::BaseController
     if user.save
       render json: { token: user.auth_token, user: user.slice(:id, :name, :email) }, status: :created
     else
-      render json: user.errors, status: :unprocessable_entity
+      render json: user.errors, status: :unprocessable_content
     end
   end
 

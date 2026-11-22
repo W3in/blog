@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type Comment = { id: number; commenter: string; body: string; status: string | null; user_id: number | null }
+type Comment = { id: number; commenter: string; body: string; user_id: number | null }
 const { headers, user } = useAuth()
 const id = useRoute().params.id
 const { data: article, refresh, error } = await useFetch<any>(`/api/articles/${id}`, { headers })
@@ -11,17 +11,12 @@ if (error.value) {
   })
 }
 
-// Same rule as _comment.html.erb: archived comments are hidden
-const comments = computed<Comment[]>(() =>
-  (article.value?.comments ?? []).filter((c: Comment) => c.status !== 'archived')
-)
+const comments = computed<Comment[]>(() => article.value?.comments ?? [])
 
 // Same rules as the Rails controllers. These only hide buttons; Rails still answers 403 to anyone who tries.
 const isAuthor = computed(() => !!user.value && user.value.id === article.value?.user_id)
 const canDestroyArticle = computed(() => isAuthor.value || !!user.value?.admin)
 const canDestroyComment = (c: Comment) => !!user.value && (c.user_id === user.value.id || user.value.admin)
-
-const statusColor: Record<string, string> = { public: 'green', private: 'orange', archived: 'default' }
 
 // Confirmation now comes from <a-popconfirm>, so these run only after the user said yes
 async function destroyArticle() {
@@ -30,7 +25,7 @@ async function destroyArticle() {
 }
 
 // No commenter field: Rails takes the name from the logged-in account
-const newComment = reactive({ body: '', status: 'public' })
+const newComment = reactive({ body: '' })
 const commentErrors = ref<Record<string, string[]>>({})
 
 async function addComment() {
@@ -49,8 +44,6 @@ async function destroyComment(commentId: number) {
   await $fetch(`/api/articles/${id}/comments/${commentId}`, { method: 'DELETE', headers: headers.value })
   await refresh()
 }
-
-const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, label: s }))
 </script>
 
 <template>
@@ -60,7 +53,7 @@ const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, la
     <a-card>
       <h1 class="page-title">{{ article.title }}</h1>
       <div class="meta">
-        <a-tag v-if="article.status" :color="statusColor[article.status]">{{ article.status }}</a-tag>
+        <a-tag :color="statusColor[article.status]">{{ statusLabel[article.status] }}</a-tag>
         <span><UserOutlined /> {{ article.user?.name ?? 'Không rõ' }}</span>
         <span><CalendarOutlined /> {{ formatDate(article.created_at) }}</span>
         <!-- Rails sets both timestamps to the same value on create, so different means edited -->
@@ -114,12 +107,8 @@ const statusOptions = ['public', 'private', 'archived'].map(s => ({ value: s, la
     <a-card v-if="user">
       <a-form layout="vertical" :model="newComment" @finish="addComment">
         <p class="comment-as">Bình luận với tên <strong>{{ user.name }}</strong></p>
-        <a-form-item label="Body" :validate-status="commentErrors.body ? 'error' : ''" :help="commentErrors.body?.join(', ')">
+        <a-form-item label="Body" name="body" :rules="[{ required: true, whitespace: true, message: 'Nhập nội dung comment' }]" v-bind="fieldState(commentErrors, 'body', 'Body')">
           <a-textarea v-model:value="newComment.body" :rows="3" placeholder="Viết comment..." />
-        </a-form-item>
-        <a-form-item label="Status" :validate-status="commentErrors.status ? 'error' : ''" :help="commentErrors.status?.join(', ')">
-          <!-- fixed id: otherwise a-select makes a different id on server and browser (hydration warning) -->
-          <a-select id="comment-status" v-model:value="newComment.status" :options="statusOptions" />
         </a-form-item>
         <a-button type="primary" html-type="submit">Create Comment</a-button>
       </a-form>

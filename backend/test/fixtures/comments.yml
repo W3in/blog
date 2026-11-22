@@ -1,11 +1,11 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+bob_on_public:
+  body: Nice post!
+  commenter: Bob
+  article: public_post
+  user: bob
 
-one:
-  commenter: MyString
-  body: MyText
-  article: one
-
-two:
-  commenter: MyString
-  body: MyText
-  article: two
+alice_on_public:
+  body: Thanks Bob.
+  commenter: Alice
+  article: public_post
+  user: alice

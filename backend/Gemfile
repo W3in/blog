@@ -61,6 +61,9 @@ group :development do
 end
 
 group :test do
+  # minitest 6 breaks `bin/rails test` on Rails 7.1 (ArgumentError in line_filtering)
+  gem "minitest", "< 6"
+
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"

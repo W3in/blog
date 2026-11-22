@@ -1,15 +1,22 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# Test users: every password is "password123". The test database is wiped and refilled from these files for every run.
 
-one:
-  name: MyString
-  email: MyString
-  password_digest: MyString
-  auth_token: MyString
+alice: # writes the articles in articles.yml
+  name: Alice
+  email: alice@example.com
+  password_digest: <%= BCrypt::Password.create("password123") %>
+  auth_token: alice-token
   admin: false
 
-two:
-  name: MyString
-  email: MyString
-  password_digest: MyString
-  auth_token: MyString
+bob: # a normal member who wrote nothing
+  name: Bob
+  email: bob@example.com
+  password_digest: <%= BCrypt::Password.create("password123") %>
+  auth_token: bob-token
   admin: false
+
+admin:
+  name: Admin
+  email: admin@example.com
+  password_digest: <%= BCrypt::Password.create("password123") %>
+  auth_token: admin-token
+  admin: true
