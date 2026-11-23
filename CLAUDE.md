@@ -41,7 +41,12 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 - Quên mật khẩu: `User` có `generates_token_for :password_reset, expires_in: 15.minutes` (gắn `password_salt` → link chết sau khi đổi mật khẩu). `Api::PasswordsController`: `POST /api/password {email}` → luôn 202 (không lộ email), gửi `PasswordsMailer.reset` nếu có user; `PATCH /api/password {token, password, password_confirmation}` → 204 + `regenerate_auth_token` (đăng xuất mọi máy), token sai/hết hạn → 422 `{token: [...]}`. Dev: mail ghi vào `tmp/mails/<email>` (base64) và **link in ra terminal Rails** (`[dev] Link đặt lại mật khẩu...`). Link trỏ về `FRONTEND_URL` (mặc định `http://localhost:8000`).
 - `Article::STATUSES = %w[public private archived]` (cột `status` mặc định `public`, NOT NULL). Concern `Visible` của Rails guide đã bỏ.
 - `Article.visible_to(user)`: khách → chỉ `public`; admin → tất cả; thành viên → `public` + `private` + bài của mình (kể cả `archived`).
-- `Comment`: **không có `status`** (đã xóa cột: comment theo quyền xem của bài), `validates :body, presence: true`. `User`: email phải đúng định dạng (`URI::MailTo::EMAIL_REGEXP`).
+- `Comment`: **không có `status`** (đã xóa cột: comment theo quyền xem của bài), `validates :body, presence: true`, `belongs_to :article, counter_cache: true` (cột `articles.comments_count`). `User`: email phải đúng định dạng (`URI::MailTo::EMAIL_REGEXP`).
+- **Comment ẩn danh**: cột `comments.anonymous`. `Comment#as_json_for(viewer)` là JSON duy nhất của comment: ẩn danh thì `commenter` và `user_id` = `nil` với **mọi người, kể cả admin** (DB vẫn giữ `user_id` để người viết/admin xóa được); kèm `can_destroy` do Rails tính.
+- **Nội dung bài là HTML** (trình soạn TipTap). `Article` lọc HTML trước khi lưu (`before_validation :sanitize_body`): Rails `sanitize` giữ `ALLOWED_TAGS`/`ALLOWED_ATTRIBUTES` (có `span`, `style`, `width`/`height` của ảnh), rồi trong `style` chỉ giữ `ALLOWED_CSS` = màu chữ, màu nền, font, căn lề → frontend hiện bằng `v-html` an toàn. Body cần ≥ 10 ký tự **chữ** (`plain_text`, không đếm thẻ). Tiêu đề tối đa `TITLE_MAX = 300`. Migration `ConvertArticleBodiesToHtml` đã đổi bài cũ (chữ thường) sang `<p>`.
+- **Bài mẫu**: `bin/rails demo:articles` (`lib/tasks/demo.rake`, chọn tác giả bằng `EMAIL=...`, mặc định admin đầu tiên rồi user đầu tiên; chạy lại thì bỏ qua bài đã có) tạo 3 bài: bài dài công khai (khách chỉ thấy phần đầu), bài tiêu đề đúng 300 ký tự, bài du lịch Đà Lạt có 4 ảnh minh họa (`db/demo/*.jpg`, vẽ bằng code, không vướng bản quyền) + font/màu/tô nền/căn giữa.
+- **Khách chỉ đọc phần đầu**: `GET /api/articles/:id` cho khách → `body` = `Article#preview` (các khối đầu tới ~300 ký tự, không cắt giữa thẻ), `truncated`, **không có `comments`** (chỉ `comments_count`). Index **không gửi `body`**: chỉ `excerpt` (chữ thường 200 ký tự) + `cover_image` (ảnh đầu tiên).
+- **Ảnh**: `POST /api/uploads` (cần đăng nhập, `UploadsController`) nhận PNG/JPG/GIF/WebP ≤ 5MB, kiểm tra loại file bằng byte đầu (Marcel), trả `{ url }`. Active Storage: `routes_prefix = "/api/files"` + `resolve_model_to_route = :rails_storage_proxy` (Rails tự gửi file, đi qua proxy Nuxt có sẵn). File nằm trong `storage/` (Docker: volume `db`). Ảnh tải lên mà không dùng thì vẫn nằm trên đĩa (chưa có job dọn).
 - Index trả bài mới nhất trước (`order(created_at: :desc)`).
 - Lỗi validate trả `:unprocessable_content` (422; tên mới của `:unprocessable_entity` trong Rack 3).
 - `ArticlesController`: `set_article` dùng `visible_to` → bài không được xem trả **404** (không lộ là bài tồn tại). Sửa bài: chỉ tác giả (403). Xóa bài: tác giả hoặc admin. JSON kèm tác giả qua `AUTHOR_JSON = { only: [:id, :name] }` — **không bao giờ** `include: :user` (lộ `auth_token`, `password_digest`); index dùng `.includes(:user)` tránh N+1.
@@ -51,18 +56,19 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 
 | Hành động | Khách | Thành viên | Tác giả bài | Admin |
 |---|---|---|---|---|
-| Xem `public` | ✅ | ✅ | ✅ | ✅ |
+| Xem `public` | phần đầu, không thấy comment | ✅ | ✅ | ✅ |
 | Xem `private` | ❌ | ✅ | ✅ | ✅ |
 | Xem `archived` | ❌ | ❌ | bài của mình | ✅ |
 | Tạo bài | ❌ | ✅ | ✅ | ✅ |
 | Sửa bài | ❌ | ❌ | ✅ | ❌ |
 | Xóa bài | ❌ | ❌ | ✅ | ✅ |
-| Comment | ❌ | ✅ | ✅ | ✅ |
+| Comment (có thể ẩn danh) | ❌ | ✅ | ✅ | ✅ |
+| Tải ảnh lên | ❌ | ✅ | ✅ | ✅ |
 | Xóa comment | ❌ | của mình | của mình | ✅ mọi comment |
 
 ### Test
 
-`ruby bin/rails test` → 67 test (model + API), phủ đủ bảng phân quyền. Fixtures: `alice` (tác giả 3 bài: public/private/archived), `bob` (thành viên), `admin`; mật khẩu `password123`, token `alice-token`/`bob-token`/`admin-token`. Helper `auth(user)` trong `test_helper.rb` tạo header Bearer. Gemfile ghim `minitest < 6` (minitest 6 làm `bin/rails test` lỗi trên Rails 7.1). Windows chạy test tuần tự (không có `fork()`).
+`ruby bin/rails test` → 84 test (model + API), phủ đủ bảng phân quyền, ẩn danh, bản xem trước, lọc HTML, upload (ảnh mẫu `test/fixtures/files/pixel.png`, file giả `fake.png`). Fixtures: `alice` (tác giả 3 bài: public/private/archived), `bob` (thành viên), `admin`; mật khẩu `password123`, token `alice-token`/`bob-token`/`admin-token`. Helper `auth(user)` trong `test_helper.rb` tạo header Bearer. Gemfile ghim `minitest < 6` (minitest 6 làm `bin/rails test` lỗi trên Rails 7.1). Windows chạy test tuần tự (không có `fork()`).
 
 ## Frontend (Nuxt)
 
@@ -73,11 +79,14 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 - `utils/fieldState.ts`: đổi lỗi 422 của Rails thành props `validateStatus`/`help` của `a-form-item` (trả `{}` khi không lỗi để rules vẫn chạy). `utils/formatDate.ts`: `formatDate`, `formatDateTime` (vi-VN, múi giờ cố định `Asia/Ho_Chi_Minh` để server và trình duyệt in cùng giờ).
 - `utils/articleStatus.ts`: `statusLabel` (Công khai / Thành viên / Lưu trữ), `statusColor`, `statusOptions` cho ô "Ai được xem". Trang chủ gắn tag cho bài không công khai.
 - `layouts/default.vue`: header sticky (logo, New Article, menu người dùng `a-dropdown` có Đăng xuất; khách thấy Đăng nhập/Đăng ký). Dưới 576px ẩn chữ (`.hide-mobile`).
-- `pages/articles/[id]/index.vue`: `isAuthor`, `canDestroyArticle`, `canDestroyComment(c)` — bản sao luật Rails, **chỉ để ẩn nút**; Rails vẫn chặn 403.
+- Giao diện kiểu Reddit: trang chủ là danh sách thẻ bài (tác giả, ngày, tiêu đề, trích đoạn, ảnh nhỏ, số bình luận); `utils/avatarColor.ts` (`avatarColor`, `initial`: màu avatar cố định theo tên). CSS chung trong `assets/css/main.css`: `.rich-content` (kiểu chữ cho HTML bài viết, global vì `v-html` không nhận scoped CSS), `.pill`, `.muted`.
+- `components/RichEditor.vue`: trình soạn TipTap 3.33.0 (ghim phiên bản, mọi gói `@tiptap/*` cùng bản) — đậm/nghiêng/gạch, **font** (5 kiểu), **màu chữ**, **tô nền**, H2/H3, **căn trái/giữa/phải**, danh sách, trích dẫn, code, link, ảnh, hoàn tác; `v-model` là HTML. Ảnh: nút chọn file, **dán (Ctrl+V) hoặc kéo thả** (`FileHandler`), mới chèn thì rộng tối đa 640px; chọn ảnh rồi **kéo 4 góc** (Image `resize`) hoặc bấm Nhỏ/Vừa/Tràn (240/420/bằng cột). Thanh công cụ có `@mousedown.prevent` (không thì bấm nút làm mất con trỏ, chữ gõ rơi ra ngoài danh sách). `ArticleForm.vue` dùng nó.
+- Font tự host bằng `@fontsource/*` 5.3.0 (Be Vietnam Pro, Playfair Display, Lora, Dancing Script; có bộ chữ tiếng Việt), nạp trong `css` của `nuxt.config.ts` — không gọi Google Fonts.
+- `pages/articles/[id]/index.vue`: `isAuthor`, `canDestroyArticle` — bản sao luật Rails, **chỉ để ẩn nút**; nút xóa comment theo `c.can_destroy` từ Rails. Khách: nội dung mờ dần + khung "Đăng nhập để đọc tiếp". Thành viên: ô bình luận kiểu Reddit có ô "Ẩn danh" (Ctrl+Enter để gửi).
 - Bài học CSS đã gặp: rule của Ant Design thường mạnh hơn (specificity) → đặt CSS lên class của mình, dùng `:style` hoặc prop có sẵn, thay vì `:deep(.ant-...)`.
 
 ## Tiến độ
 
-Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối" → 6 (route middleware) → xóa giao diện HTML cũ → dọn `status` (bỏ ở comment, mặc định `public` ở bài, nhãn tiếng Việt), validate body comment + định dạng email → quên mật khẩu. Bộ test 67 ca. Giải thích toàn bộ code: `docs/giai-thich-code.md` (chỉ ở máy, `docs/` bị gitignore).
+Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối" → 6 (route middleware) → xóa giao diện HTML cũ → dọn `status` (bỏ ở comment, mặc định `public` ở bài, nhãn tiếng Việt), validate body comment + định dạng email → quên mật khẩu → Docker (`docker-compose.yml`, `frontend/Dockerfile`, GitHub Actions đẩy image lên GHCR) → giao diện kiểu Reddit + trình soạn có ảnh + khách đọc phần đầu + comment ẩn danh → font/màu/căn lề, kéo đổi cỡ ảnh, dán ảnh, bài mẫu `demo:articles`. Bộ test 84 ca. Giải thích toàn bộ code: `docs/giai-thich-code.md` (chỉ ở máy, `docs/` bị gitignore).
 
 Tiếp theo (có thể): API trả 401 khi gửi token sai ở trang công khai (hiện coi là khách; `GET /api/session` đã trả 401 nên frontend vẫn tự xóa cookie hỏng).

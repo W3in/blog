@@ -2,7 +2,8 @@ class Api::PasswordsController < Api::BaseController
   # POST /api/password { email } -> send a reset link
   def create
     user = User.find_by(email: params[:email])
-    PasswordsMailer.reset(user).deliver_now if user
+    # deliver_later: queue the email and answer at once, otherwise a slower reply would reveal the email exists
+    PasswordsMailer.reset(user).deliver_later if user
     # Same answer whether the email exists or not, so nobody can probe which emails are registered
     head :accepted
   end

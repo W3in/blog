@@ -2,6 +2,8 @@
 
 # If running the rails server then create or migrate existing database
 if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
+  # A hard kill (out of memory, power loss) leaves this file behind and Rails refuses to start
+  rm -f tmp/pids/server.pid
   ./bin/rails db:prepare
 fi
 

@@ -18,6 +18,24 @@ class Api::CommentsControllerTest < ActionDispatch::IntegrationTest
     assert_equal users(:bob), comment.user
   end
 
+  test "member can comment anonymously: the answer has no name or id, the database still knows" do
+    post comments_path(articles(:public_post)), params: { comment: { body: "Hi", anonymous: true } }, headers: auth(users(:bob))
+    assert_response :created
+    assert_nil response.parsed_body["commenter"]
+    assert_nil response.parsed_body["user_id"]
+    comment = Comment.last
+    assert comment.anonymous
+    assert_equal users(:bob), comment.user
+  end
+
+  test "comment count of the article follows creates and deletes" do
+    article = articles(:public_post)
+    post comments_path(article), params: { comment: { body: "Hi" } }, headers: auth(users(:bob))
+    assert_equal 3, article.reload.comments_count
+    delete "#{comments_path(article)}/#{comments(:bob_on_public).id}", headers: auth(users(:bob))
+    assert_equal 2, article.reload.comments_count
+  end
+
   test "empty comment is rejected" do
     post comments_path(articles(:public_post)), params: { comment: { body: "" } }, headers: auth(users(:bob))
     assert_response :unprocessable_content

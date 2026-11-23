@@ -21,6 +21,11 @@ module Blog
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
+    # Uploaded images live under /api/files/..., which Nuxt already forwards to Rails (no new proxy rule)
+    config.active_storage.routes_prefix = "/api/files"
+    # Rails sends the file itself instead of redirecting to another URL, so links work through the Nuxt proxy
+    config.active_storage.resolve_model_to_route = :rails_storage_proxy
+
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
   end

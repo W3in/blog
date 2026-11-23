@@ -5,6 +5,7 @@ public_post:
   body: Everyone can read this article.
   status: public
   user: alice
+  comments_count: 2 # fixtures skip counter_cache: set it by hand to match comments.yml
 
 private_post:
   title: Private post

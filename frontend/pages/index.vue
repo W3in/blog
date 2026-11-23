@@ -1,82 +1,125 @@
 <script setup lang="ts">
-type Article = {
-  id: number; title: string; body: string; status: string
-  created_at: string; updated_at: string
+// The list has no body: Rails sends a plain-text excerpt and the first image instead
+type ArticleItem = {
+  id: number; title: string; status: string
+  excerpt: string; cover_image: string | null; comments_count: number
+  created_at: string
   user: { id: number; name: string } | null
 }
 const { headers } = useAuth()
-const { data: articles, error } = await useFetch<Article[]>('/api/articles', { headers })
+const { data: articles, error } = await useFetch<ArticleItem[]>('/api/articles', { headers })
 </script>
 
 <template>
   <main>
-    <h1 class="page-title">Articles</h1>
+    <h1 class="page-title">Bài viết mới</h1>
     <a-alert v-if="error" type="error" show-icon :message="`Không tải được bài viết: ${error.message}`" />
+    <a-card v-else-if="!articles?.length"><a-empty description="Chưa có bài viết nào" /></a-card>
 
-    <a-card v-else :body-style="{ padding: '0 24px' }">
-      <a-list item-layout="horizontal" :data-source="articles ?? []">
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <a-list-item-meta>
-              <template #description>
-                <div class="body-preview">{{ item.body }}</div>
-                <div class="item-meta">
-                  <span><UserOutlined /> {{ item.user?.name ?? 'Không rõ' }}</span>
-                  <span><CalendarOutlined /> {{ formatDate(item.created_at) }}</span>
-                </div>
-              </template>
-              <template #title>
-                <NuxtLink :to="`/articles/${item.id}`" class="title-link">{{ item.title }}</NuxtLink>
-                <!-- Only members/authors/admins get non-public articles: tag them so they know who else can see them -->
-                <a-tag v-if="item.status !== 'public'" :color="statusColor[item.status]" class="status-tag">{{ statusLabel[item.status] }}</a-tag>
-              </template>
-              <template #avatar>
-                <a-avatar :style="{ backgroundColor: '#1677ff' }">{{ item.title[0]?.toUpperCase() }}</a-avatar>
-              </template>
-            </a-list-item-meta>
-          </a-list-item>
-        </template>
-      </a-list>
-    </a-card>
+    <div v-else class="feed">
+      <!-- The whole card is one link, like a Reddit post in the feed -->
+      <NuxtLink v-for="item in articles" :key="item.id" :to="`/articles/${item.id}`" class="post-card">
+        <div class="card-main">
+          <div class="card-meta">
+            <a-avatar size="small" :style="{ backgroundColor: avatarColor(item.user?.name) }">{{ initial(item.user?.name) }}</a-avatar>
+            <span class="card-author">{{ item.user?.name ?? 'Không rõ' }}</span>
+            <span class="muted">• {{ formatDate(item.created_at) }}</span>
+            <!-- Only members/authors/admins get non-public articles: tag them so they know who else can see them -->
+            <a-tag v-if="item.status !== 'public'" :color="statusColor[item.status]" class="status-tag">{{ statusLabel[item.status] }}</a-tag>
+          </div>
+          <h2 class="card-title">{{ item.title }}</h2>
+          <p v-if="item.excerpt" class="card-excerpt">{{ item.excerpt }}</p>
+          <span class="pill"><MessageOutlined /> {{ item.comments_count }} bình luận</span>
+        </div>
+        <!-- alt="": decoration only, the title already says what the post is -->
+        <img v-if="item.cover_image" :src="item.cover_image" alt="" class="card-thumb" loading="lazy">
+      </NuxtLink>
+    </div>
   </main>
 </template>
 
 <style scoped>
-/* Title line as tall as the 32px avatar, so the title text sits on the avatar's middle.
-   Set on our own link: a rule on .ant-list-item-meta-title loses to Ant Design's more specific CSS. */
-.title-link {
-  display: inline-block;
-  line-height: 32px;
-  font-size: 16px;
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.post-card:hover,
+.post-card:focus-visible {
+  border-color: #d9d9d9;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* min-width: 0 lets long titles wrap instead of pushing the thumbnail out of the card */
+.card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.card-author {
+  font-weight: 600;
 }
 
 .status-tag {
-  margin-left: 8px;
-  vertical-align: middle;
+  margin: 0;
 }
 
-/* Long article bodies: show at most 2 lines in the list */
-.body-preview {
+.card-title {
+  margin: 8px 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+/* At most 3 lines of the excerpt */
+.card-excerpt {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin: 0 0 12px;
+  color: rgba(0, 0, 0, 0.65);
 }
 
-/* Author + date under the preview: smaller and lighter than the body text */
-.item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+.card-thumb {
+  flex: none;
+  width: 120px;
+  height: 90px;
+  object-fit: cover; /* crop to fill the box instead of stretching */
+  border-radius: 8px;
+  background: #f5f5f5;
 }
 
-/* Phones: give the text the full width */
 @media (max-width: 576px) {
-  :deep(.ant-list-item-meta-avatar) {
-    display: none;
+  .post-card {
+    padding: 14px 16px;
+  }
+
+  .card-thumb {
+    width: 80px;
+    height: 64px;
   }
 }
 </style>

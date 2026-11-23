@@ -1,2 +1,6 @@
 # Personal study notes, kept out of the repo
 docs/
+# Secrets for docker compose (SECRET_KEY_BASE, SMTP password)
+.env
+# Ignore claude file
+.claude

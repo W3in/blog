@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    image: ghcr.io/w3in/blog-backend:latest
+    env_file: .env
+    volumes:
+      - db:/rails/storage
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: ghcr.io/w3in/blog-frontend:latest
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db:

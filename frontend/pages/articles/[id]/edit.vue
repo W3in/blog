@@ -31,9 +31,9 @@ async function update(changes: object) {
 <template>
   <main>
     <NuxtLink :to="`/articles/${id}`" class="back-link"><ArrowLeftOutlined /> Quay lại bài viết</NuxtLink>
-    <h1 class="page-title">Edit Article</h1>
+    <h1 class="page-title">Sửa bài viết</h1>
     <a-card>
-      <ArticleForm v-if="article" :article="article" :errors="errors" submit-label="Update Article" @submit="update" />
+      <ArticleForm v-if="article" :article="article" :errors="errors" submit-label="Lưu thay đổi" :cancel-to="`/articles/${id}`" @submit="update" />
     </a-card>
   </main>
 </template>

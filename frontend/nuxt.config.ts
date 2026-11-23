@@ -9,8 +9,17 @@ export default defineNuxtConfig({
   antd: { extractStyle: true },
   // Forward /api/* to Rails so the browser never calls another origin (no CORS setup needed)
   routeRules: {
-    '/api/**': { proxy: 'http://localhost:3000/api/**' }
+    '/api/**': { proxy: `${process.env.API_URL ?? 'http://localhost:3000'}/api/**` }
   },
-  // Ant Design's reset first (removes browser default margins/fonts), then our own rules
-  css: ['ant-design-vue/dist/reset.css', '~/assets/css/main.css'],
+  // Ant Design's reset first (removes browser default margins/fonts), then our own rules.
+  // Fonts for the editor's font menu, served from our own site (no request to Google); each file
+  // has a Vietnamese subset and the browser only downloads the subsets a page actually uses
+  css: [
+    'ant-design-vue/dist/reset.css',
+    '@fontsource/be-vietnam-pro/400.css', '@fontsource/be-vietnam-pro/600.css',
+    '@fontsource/playfair-display/400.css', '@fontsource/playfair-display/700.css', '@fontsource/playfair-display/400-italic.css',
+    '@fontsource/lora/400.css', '@fontsource/lora/700.css', '@fontsource/lora/400-italic.css',
+    '@fontsource/dancing-script/600.css',
+    '~/assets/css/main.css'
+  ],
 })

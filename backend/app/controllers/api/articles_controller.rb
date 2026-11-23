@@ -7,11 +7,24 @@ class Api::ArticlesController < Api::BaseController
 
   def index
     # includes(:user): load all authors in one query instead of one query per article (N+1)
-    render json: Article.visible_to(current_user).includes(:user).order(created_at: :desc), include: { user: AUTHOR_JSON }
+    articles = Article.visible_to(current_user).includes(:user).order(created_at: :desc)
+    # No body in the list: guests must not read whole articles here, and a summary is all the list shows
+    render json: articles.map { |article|
+      article.as_json(except: :body, include: { user: AUTHOR_JSON })
+        .merge("excerpt" => article.excerpt, "cover_image" => article.cover_image)
+    }
   end
 
   def show
-    render json: @article, include: { comments: {}, user: AUTHOR_JSON }
+    json = @article.as_json(include: { user: AUTHOR_JSON })
+    if current_user
+      comments = @article.comments.order(:created_at).map { |comment| comment.as_json_for(current_user) }
+      json.merge!("comments" => comments, "truncated" => false)
+    else
+      # Guests: only the beginning, no comments (comments_count still tells how many there are)
+      json.merge!("body" => @article.preview, "truncated" => @article.preview_truncated?)
+    end
+    render json: json
   end
 
   def create

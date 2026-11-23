@@ -6,7 +6,7 @@ class Api::CommentsController < Api::BaseController
     comment = article.comments.new(comment_params.merge(user: current_user, commenter: current_user.name))
 
     if comment.save
-      render json: comment, status: :created
+      render json: comment.as_json_for(current_user), status: :created
     else
       render json: comment.errors, status: :unprocessable_content
     end
@@ -21,6 +21,6 @@ class Api::CommentsController < Api::BaseController
 
   private
     def comment_params
-      params.require(:comment).permit(:body)
+      params.require(:comment).permit(:body, :anonymous)
     end
 end

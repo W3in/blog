@@ -1,8 +1,20 @@
 <script setup lang="ts">
-type Comment = { id: number; commenter: string; body: string; user_id: number | null }
+// Rails decides what each viewer gets: no names/ids for anonymous comments, can_destroy per comment
+type Comment = {
+  id: number; body: string; anonymous: boolean
+  commenter: string | null; created_at: string; can_destroy: boolean
+}
+type Article = {
+  id: number; title: string; body: string; status: string; user_id: number
+  created_at: string; updated_at: string; comments_count: number
+  truncated: boolean // guests: body is only the beginning
+  user: { id: number; name: string } | null
+  comments?: Comment[] // missing for guests
+}
+
 const { headers, user } = useAuth()
 const id = useRoute().params.id
-const { data: article, refresh, error } = await useFetch<any>(`/api/articles/${id}`, { headers })
+const { data: article, refresh, error } = await useFetch<Article>(`/api/articles/${id}`, { headers })
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 500,
@@ -11,32 +23,36 @@ if (error.value) {
   })
 }
 
-const comments = computed<Comment[]>(() => article.value?.comments ?? [])
+const comments = computed(() => article.value?.comments ?? [])
+const edited = computed(() => article.value && article.value.updated_at !== article.value.created_at)
 
-// Same rules as the Rails controllers. These only hide buttons; Rails still answers 403 to anyone who tries.
+// Same rules as ArticlesController. These only hide buttons; Rails still answers 403 to anyone who tries
 const isAuthor = computed(() => !!user.value && user.value.id === article.value?.user_id)
 const canDestroyArticle = computed(() => isAuthor.value || !!user.value?.admin)
-const canDestroyComment = (c: Comment) => !!user.value && (c.user_id === user.value.id || user.value.admin)
 
-// Confirmation now comes from <a-popconfirm>, so these run only after the user said yes
 async function destroyArticle() {
-  await $fetch(`/api/articles/${id}`, { method: 'DELETE' , headers: headers.value })
+  await $fetch(`/api/articles/${id}`, { method: 'DELETE', headers: headers.value })
   await navigateTo('/')
 }
 
-// No commenter field: Rails takes the name from the logged-in account
-const newComment = reactive({ body: '' })
-const commentErrors = ref<Record<string, string[]>>({})
+// --- Comment box ---
+const newComment = reactive({ body: '', anonymous: false })
+const commentError = ref('')
+const posting = ref(false)
 
 async function addComment() {
+  if (!newComment.body.trim() || posting.value) return
+  posting.value = true
+  commentError.value = ''
   try {
     await $fetch(`/api/articles/${id}/comments`, { method: 'POST', body: { comment: newComment }, headers: headers.value })
     newComment.body = ''
-    commentErrors.value = {}
-    await refresh() // reload article so the new comment shows up
+    await refresh() // reload the article so the new comment and the new count show up
   } catch (e: any) {
     if (e.status !== 422) throw e
-    commentErrors.value = e.data
+    commentError.value = e.data?.body ? `Bình luận ${e.data.body.join(', ')}` : 'Không gửi được bình luận'
+  } finally {
+    posting.value = false
   }
 }
 
@@ -44,133 +60,293 @@ async function destroyComment(commentId: number) {
   await $fetch(`/api/articles/${id}/comments/${commentId}`, { method: 'DELETE', headers: headers.value })
   await refresh()
 }
+
+// Guests come back to this article after logging in
+const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/${id}` } }))
 </script>
 
 <template>
   <main v-if="article">
     <NuxtLink to="/" class="back-link"><ArrowLeftOutlined /> Tất cả bài viết</NuxtLink>
 
-    <a-card>
-      <h1 class="page-title">{{ article.title }}</h1>
-      <div class="meta">
-        <a-tag :color="statusColor[article.status]">{{ statusLabel[article.status] }}</a-tag>
-        <span><UserOutlined /> {{ article.user?.name ?? 'Không rõ' }}</span>
-        <span><CalendarOutlined /> {{ formatDate(article.created_at) }}</span>
-        <!-- Rails sets both timestamps to the same value on create, so different means edited -->
-        <span v-if="article.updated_at !== article.created_at">
-          <EditOutlined /> Sửa lần cuối {{ formatDateTime(article.updated_at) }}
-        </span>
-      </div>
+    <article class="post">
+      <header class="post-meta">
+        <a-avatar :style="{ backgroundColor: avatarColor(article.user?.name) }">{{ initial(article.user?.name) }}</a-avatar>
+        <div>
+          <div class="post-author">{{ article.user?.name ?? 'Không rõ' }}</div>
+          <div class="muted small">
+            {{ formatDate(article.created_at) }}
+            <!-- Rails sets both timestamps to the same value on create, so different means edited -->
+            <span v-if="edited"> • đã sửa {{ formatDateTime(article.updated_at) }}</span>
+          </div>
+        </div>
+        <a-tag v-if="article.status !== 'public'" :color="statusColor[article.status]" class="post-tag">{{ statusLabel[article.status] }}</a-tag>
+      </header>
 
-      <p class="article-body">{{ article.body }}</p>
+      <h1 class="post-title">{{ article.title }}</h1>
 
-      <a-space v-if="isAuthor || canDestroyArticle" wrap>
-        <NuxtLink v-if="isAuthor" v-slot="{ href, navigate }" :to="`/articles/${id}/edit`" custom>
-          <a-button :href="href" @click="navigate"><EditOutlined /> Edit</a-button>
-        </NuxtLink>
-        <a-popconfirm v-if="canDestroyArticle" title="Xóa bài viết này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyArticle">
-          <a-button danger><DeleteOutlined /> Destroy</a-button>
-        </a-popconfirm>
-      </a-space>
-    </a-card>
+      <!-- v-html is safe here: Rails strips every tag/attribute outside a short safe list before saving -->
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="rich-content post-body" :class="{ faded: article.truncated }" v-html="article.body" />
 
-    <h2 class="section-title">Comments ({{ comments.length }})</h2>
-    <!-- vertical list items already have their own side padding, so the card adds none -->
-    <a-card :body-style="{ padding: comments.length ? '0' : '24px' }">
-      <a-empty v-if="!comments.length" description="Chưa có comment nào" />
-      <a-list v-else item-layout="vertical" :data-source="comments">
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <a-list-item-meta>
-              <template #avatar>
-                <a-avatar :style="{ backgroundColor: '#87d068' }">{{ (item.commenter || '?')[0].toUpperCase() }}</a-avatar>
-              </template>
-              <template #title>
-                <span class="commenter">{{ item.commenter || 'Ẩn danh' }}</span>
-              </template>
-              <template #description>
-                <span class="comment-body">{{ item.body }}</span>
-              </template>
-            </a-list-item-meta>
-            <!-- v-if on a slot: no Destroy button at all for people who may not delete this comment -->
-            <template v-if="canDestroyComment(item)" #actions>
-              <a-popconfirm title="Xóa comment này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyComment(item.id)">
-                <a-button type="text" danger size="small">Destroy</a-button>
-              </a-popconfirm>
-            </template>
-          </a-list-item>
-        </template>
-      </a-list>
-    </a-card>
+      <footer class="post-actions">
+        <span class="pill"><MessageOutlined /> {{ article.comments_count }} bình luận</span>
+        <a-space v-if="isAuthor || canDestroyArticle" :size="4">
+          <NuxtLink v-if="isAuthor" v-slot="{ href, navigate }" :to="`/articles/${id}/edit`" custom>
+            <a-button type="text" :href="href" @click="navigate"><EditOutlined /> Sửa</a-button>
+          </NuxtLink>
+          <a-popconfirm v-if="canDestroyArticle" title="Xóa bài viết này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyArticle">
+            <a-button type="text" danger><DeleteOutlined /> Xóa</a-button>
+          </a-popconfirm>
+        </a-space>
+      </footer>
+    </article>
 
-    <h2 class="section-title">Add a comment</h2>
-    <a-card v-if="user">
-      <a-form layout="vertical" :model="newComment" @finish="addComment">
-        <p class="comment-as">Bình luận với tên <strong>{{ user.name }}</strong></p>
-        <a-form-item label="Body" name="body" :rules="[{ required: true, whitespace: true, message: 'Nhập nội dung comment' }]" v-bind="fieldState(commentErrors, 'body', 'Body')">
-          <a-textarea v-model:value="newComment.body" :rows="3" placeholder="Viết comment..." />
-        </a-form-item>
-        <a-button type="primary" html-type="submit">Create Comment</a-button>
-      </a-form>
-    </a-card>
-    <!-- Guests: Rails would answer 401 anyway, so show the way in instead of a form that cannot work -->
-    <a-card v-else class="login-prompt">
-      <p>Đăng nhập để tham gia bình luận.</p>
+    <!-- Guests: Rails sent only the beginning and no comments, so offer the way in -->
+    <section v-if="!user" class="gate">
+      <div class="gate-icon"><LockOutlined /></div>
+      <h2 class="gate-title">{{ article.truncated ? 'Đăng nhập để đọc tiếp' : 'Tham gia thảo luận' }}</h2>
+      <p class="muted">
+        {{ article.truncated ? 'Bạn đang xem phần đầu bài viết.' : '' }}
+        Thành viên đọc được toàn bộ bài và {{ article.comments_count }} bình luận.
+      </p>
       <a-space>
-        <NuxtLink v-slot="{ href, navigate }" to="/login" custom>
+        <NuxtLink v-slot="{ href, navigate }" :to="loginTo" custom>
           <a-button type="primary" :href="href" @click="navigate">Đăng nhập</a-button>
         </NuxtLink>
         <NuxtLink v-slot="{ href, navigate }" to="/register" custom>
-          <a-button :href="href" @click="navigate">Đăng ký</a-button>
+          <a-button :href="href" @click="navigate">Tạo tài khoản</a-button>
         </NuxtLink>
       </a-space>
-    </a-card>
+    </section>
+
+    <section v-else class="comments">
+      <!-- No form labels or "*": one box with the options underneath, like Reddit's comment box -->
+      <div class="composer">
+        <a-textarea
+          v-model:value="newComment.body"
+          :bordered="false"
+          :auto-size="{ minRows: 2, maxRows: 12 }"
+          placeholder="Viết bình luận..."
+          aria-label="Nội dung bình luận"
+          @keydown.ctrl.enter="addComment"
+        />
+        <div class="composer-bar">
+          <a-checkbox v-model:checked="newComment.anonymous">Ẩn danh</a-checkbox>
+          <span class="muted small composer-as">
+            {{ newComment.anonymous ? 'Không ai thấy tên bạn' : `Bình luận với tên ${user.name}` }}
+          </span>
+          <a-button type="primary" shape="round" :disabled="!newComment.body.trim()" :loading="posting" @click="addComment">Bình luận</a-button>
+        </div>
+      </div>
+      <p v-if="commentError" class="composer-error">{{ commentError }}</p>
+
+      <h2 class="comments-title">Bình luận ({{ comments.length }})</h2>
+      <p v-if="!comments.length" class="muted">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+
+      <div v-for="c in comments" :key="c.id" class="comment">
+        <a-avatar v-if="c.anonymous" size="small" class="comment-avatar" :style="{ backgroundColor: '#8c8c8c' }">
+          <template #icon><UserOutlined /></template>
+        </a-avatar>
+        <a-avatar v-else size="small" class="comment-avatar" :style="{ backgroundColor: avatarColor(c.commenter) }">{{ initial(c.commenter) }}</a-avatar>
+
+        <div class="comment-main">
+          <div class="small">
+            <span class="comment-author" :class="{ anonymous: c.anonymous }">{{ c.anonymous ? 'Ẩn danh' : c.commenter }}</span>
+            <span class="muted"> • {{ formatDateTime(c.created_at) }}</span>
+          </div>
+          <p class="comment-body">{{ c.body }}</p>
+          <a-popconfirm v-if="c.can_destroy" title="Xóa bình luận này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyComment(c.id)">
+            <a-button type="text" size="small" danger class="comment-delete">Xóa</a-button>
+          </a-popconfirm>
+        </div>
+      </div>
+    </section>
   </main>
 </template>
 
 <style scoped>
-.meta {
+.small {
+  font-size: 13px;
+}
+
+.post {
+  padding: 20px 24px 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.post-meta {
   display: flex;
-  flex-wrap: wrap; /* phones: author / date / edited move to a new line instead of overflowing */
   align-items: center;
-  gap: 8px 16px;
-  margin-bottom: 16px;
-  color: rgba(0, 0, 0, 0.45);
+  gap: 10px;
 }
 
-/* Keep the line breaks the author typed */
-.article-body {
-  white-space: pre-line;
-  font-size: 16px;
-  line-height: 1.7;
-  margin-bottom: 24px;
+.post-author {
+  font-weight: 600;
 }
 
-.section-title {
-  margin: 32px 0 12px;
+/* Tag pushed to the right end of the author row */
+.post-tag {
+  margin: 0 0 0 auto;
+}
+
+.post-title {
+  margin: 16px 0 12px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Guests: the cut-off text fades out instead of stopping mid-sentence */
+.post-body.faded {
+  max-height: 360px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.gate {
+  margin-top: 16px;
+  padding: 28px 24px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+}
+
+.gate-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: #e6f4ff;
+  color: #1677ff;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gate-title {
+  margin: 0 0 4px;
   font-size: 18px;
   font-weight: 600;
 }
 
-.comment-as {
-  margin: 0 0 16px;
-  color: rgba(0, 0, 0, 0.45);
+.comments {
+  margin-top: 16px;
+  padding: 20px 24px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
 }
 
-.login-prompt {
-  text-align: center;
+/* One rounded box around the textarea and its bottom bar; blue border while typing */
+.composer {
+  border: 1px solid #d9d9d9;
+  border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.login-prompt p {
-  margin-bottom: 12px;
-  color: rgba(0, 0, 0, 0.65);
+.composer:focus-within {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
 }
 
-.commenter {
+.composer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-top: 1px solid #f5f5f5;
+}
+
+/* Pushes the button to the right */
+.composer-as {
+  flex: 1;
+}
+
+.composer-error {
+  margin: 8px 0 0;
+  color: #ff4d4f;
+}
+
+.comments-title {
+  margin: 24px 0 12px;
+  font-size: 16px;
   font-weight: 600;
 }
 
+/* Avatar column + a thin line under it, like a Reddit thread */
+.comment {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.comment-avatar {
+  flex: none;
+}
+
+.comment::before {
+  content: '';
+  position: absolute;
+  top: 30px;
+  bottom: 4px;
+  left: 11px;
+  width: 2px;
+  border-radius: 1px;
+  background: #f0f0f0;
+}
+
+.comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-author {
+  font-weight: 600;
+}
+
+.comment-author.anonymous {
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* Keep the line breaks the writer typed */
 .comment-body {
-  color: rgba(0, 0, 0, 0.75);
+  margin: 2px 0 0;
   white-space: pre-line;
-}</style>
+  overflow-wrap: anywhere;
+}
+
+.comment-delete {
+  margin-left: -8px; /* text button padding: line up with the comment text */
+}
+
+@media (max-width: 576px) {
+  .post,
+  .comments {
+    padding: 16px;
+  }
+
+  .post-title {
+    font-size: 22px;
+  }
+}
+</style>

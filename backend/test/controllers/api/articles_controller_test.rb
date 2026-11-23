@@ -62,9 +62,55 @@ class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
   end
 
-  test "article page includes its comments" do
-    get "/api/articles/#{articles(:public_post).id}"
+  test "list sends a summary and a thumbnail, never the whole body" do
+    articles(:public_post).update!(body: "<p>Hello &amp; welcome to this post</p><p><img src=\"/api/files/a.png\"></p>")
+    get "/api/articles"
+    item = response.parsed_body.first
+    assert_not item.key?("body")
+    assert_equal "Hello & welcome to this post", item["excerpt"]
+    assert_equal "/api/files/a.png", item["cover_image"]
+    assert_equal 2, item["comments_count"]
+  end
+
+  test "member sees the whole article with its comments" do
+    get "/api/articles/#{articles(:public_post).id}", headers: auth(users(:bob))
     assert_equal 2, response.parsed_body["comments"].size
+    assert_equal false, response.parsed_body["truncated"]
+  end
+
+  test "guest gets only the beginning of a long article and no comments" do
+    articles(:public_post).update!(body: "<p>#{"a" * 250}</p><p>#{"b" * 250}</p><p>secret ending</p>")
+    get "/api/articles/#{articles(:public_post).id}"
+    json = response.parsed_body
+    assert_equal true, json["truncated"]
+    assert_not json.key?("comments")
+    assert_equal 2, json["comments_count"]
+    assert_includes json["body"], "a" * 250
+    assert_not_includes json["body"], "secret ending"
+    assert_not_includes response.body, "secret ending"
+  end
+
+  test "guest reads a short article in full" do
+    get "/api/articles/#{articles(:public_post).id}"
+    assert_equal false, response.parsed_body["truncated"]
+    assert_includes response.parsed_body["body"], "Everyone can read this article."
+  end
+
+  test "anonymous comments hide their writer from everyone, admins included" do
+    articles(:public_post).comments.create!(user: users(:bob), commenter: "Bob", body: "Psst", anonymous: true)
+    [users(:alice), users(:admin)].each do |viewer|
+      get "/api/articles/#{articles(:public_post).id}", headers: auth(viewer)
+      anon = response.parsed_body["comments"].find { |c| c["anonymous"] }
+      assert_nil anon["commenter"]
+      assert_nil anon["user_id"]
+      assert_equal viewer.admin?, anon["can_destroy"] # admin may delete, the article author may not
+    end
+  end
+
+  test "the anonymous writer can still delete their own comment" do
+    articles(:public_post).comments.create!(user: users(:bob), commenter: "Bob", body: "Psst", anonymous: true)
+    get "/api/articles/#{articles(:public_post).id}", headers: auth(users(:bob))
+    assert response.parsed_body["comments"].find { |c| c["anonymous"] }["can_destroy"]
   end
 
   # --- Creating ---
