@@ -38,6 +38,7 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 - Đăng nhập bằng token: `User` có `has_secure_password` + `has_secure_token :auth_token`, cột `admin` (boolean, mặc định false).
   - `POST /api/registration` (UsersController#create) → `{ token, user }`; permit `name, email, password, password_confirmation` (**không** permit `admin`).
   - `POST /api/session` (đăng nhập, `User.authenticate_by`) → `{ token, user }`; `GET /api/session` → user hiện tại kèm `admin`; `DELETE /api/session` → `regenerate_auth_token` (đăng xuất).
+- Quên mật khẩu: `User` có `generates_token_for :password_reset, expires_in: 15.minutes` (gắn `password_salt` → link chết sau khi đổi mật khẩu). `Api::PasswordsController`: `POST /api/password {email}` → luôn 202 (không lộ email), gửi `PasswordsMailer.reset` nếu có user; `PATCH /api/password {token, password, password_confirmation}` → 204 + `regenerate_auth_token` (đăng xuất mọi máy), token sai/hết hạn → 422 `{token: [...]}`. Dev: mail ghi vào `tmp/mails/<email>` (base64) và **link in ra terminal Rails** (`[dev] Link đặt lại mật khẩu...`). Link trỏ về `FRONTEND_URL` (mặc định `http://localhost:8000`).
 - `Article::STATUSES = %w[public private archived]` (cột `status` mặc định `public`, NOT NULL). Concern `Visible` của Rails guide đã bỏ.
 - `Article.visible_to(user)`: khách → chỉ `public`; admin → tất cả; thành viên → `public` + `private` + bài của mình (kể cả `archived`).
 - `Comment`: **không có `status`** (đã xóa cột: comment theo quyền xem của bài), `validates :body, presence: true`. `User`: email phải đúng định dạng (`URI::MailTo::EMAIL_REGEXP`).
@@ -61,14 +62,14 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 
 ### Test
 
-`ruby bin/rails test` → 58 test (model + API), phủ đủ bảng phân quyền. Fixtures: `alice` (tác giả 3 bài: public/private/archived), `bob` (thành viên), `admin`; mật khẩu `password123`, token `alice-token`/`bob-token`/`admin-token`. Helper `auth(user)` trong `test_helper.rb` tạo header Bearer. Gemfile ghim `minitest < 6` (minitest 6 làm `bin/rails test` lỗi trên Rails 7.1). Windows chạy test tuần tự (không có `fork()`).
+`ruby bin/rails test` → 67 test (model + API), phủ đủ bảng phân quyền. Fixtures: `alice` (tác giả 3 bài: public/private/archived), `bob` (thành viên), `admin`; mật khẩu `password123`, token `alice-token`/`bob-token`/`admin-token`. Helper `auth(user)` trong `test_helper.rb` tạo header Bearer. Gemfile ghim `minitest < 6` (minitest 6 làm `bin/rails test` lỗi trên Rails 7.1). Windows chạy test tuần tự (không có `fork()`).
 
 ## Frontend (Nuxt)
 
 - `composables/useAuth.ts`: `token` = `useCookie('token')` (cookie để SSR biết người dùng), `user` = `useState('user')`, `headers` (computed Bearer), `login / register / logout / fetchUser`. `fetchUser` chỉ xóa token khi Rails trả 401.
 - `plugins/auth.server.ts`: chạy `fetchUser()` trên server mỗi lần tải trang; user xuống trình duyệt qua `useState`.
 - Mọi lời gọi API phải gửi token: `useFetch(url, { headers })` (truyền ref) và `$fetch(url, { ..., headers: headers.value })` (truyền giá trị).
-- `components/AuthCard.vue`: khung chung cho `pages/login.vue` và `pages/register.vue`.
+- `components/AuthCard.vue`: khung chung cho `pages/login.vue`, `register.vue`, `forgot-password.vue`, `reset-password.vue` (cả 4 dùng middleware `guest`). Login có link "Quên mật khẩu?" và hiện thông báo xanh khi `?reset=1`.
 - `utils/fieldState.ts`: đổi lỗi 422 của Rails thành props `validateStatus`/`help` của `a-form-item` (trả `{}` khi không lỗi để rules vẫn chạy). `utils/formatDate.ts`: `formatDate`, `formatDateTime` (vi-VN, múi giờ cố định `Asia/Ho_Chi_Minh` để server và trình duyệt in cùng giờ).
 - `utils/articleStatus.ts`: `statusLabel` (Công khai / Thành viên / Lưu trữ), `statusColor`, `statusOptions` cho ô "Ai được xem". Trang chủ gắn tag cho bài không công khai.
 - `layouts/default.vue`: header sticky (logo, New Article, menu người dùng `a-dropdown` có Đăng xuất; khách thấy Đăng nhập/Đăng ký). Dưới 576px ẩn chữ (`.hide-mobile`).
@@ -77,8 +78,6 @@ Database không nằm trong git: máy mới sẽ trống, cần đăng ký user 
 
 ## Tiến độ
 
-Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối" → 6 (route middleware) → xóa giao diện HTML cũ → dọn `status` (bỏ ở comment, mặc định `public` ở bài, nhãn tiếng Việt), validate body comment + định dạng email, bộ test 58 ca. Giải thích toàn bộ code: `docs/giai-thich-code.md`.
+Đã xong: chặng 1 (User, đăng ký, đăng nhập) → 2 (`current_user`, logout) → 3 (phân quyền backend) → 4.1–4.3 (useAuth, login/register, header) → 4.4 (gửi token mọi request) → 4.5 (ẩn/hiện nút theo quyền, bỏ ô Commenter, khách thấy lời mời đăng nhập) → hiện tác giả + "Sửa lần cuối" → 6 (route middleware) → xóa giao diện HTML cũ → dọn `status` (bỏ ở comment, mặc định `public` ở bài, nhãn tiếng Việt), validate body comment + định dạng email → quên mật khẩu. Bộ test 67 ca. Giải thích toàn bộ code: `docs/giai-thich-code.md` (chỉ ở máy, `docs/` bị gitignore).
 
-Tiếp theo:
-1. **Quên mật khẩu**: `generates_token_for :password_reset` (Rails 7.1), ActionMailer (dev: xem email trong log), trang nhập email + trang đặt lại mật khẩu.
-2. Có thể: API trả 401 khi gửi token sai ở trang công khai (hiện coi là khách; `GET /api/session` đã trả 401 nên frontend vẫn tự xóa cookie hỏng).
+Tiếp theo (có thể): API trả 401 khi gửi token sai ở trang công khai (hiện coi là khách; `GET /api/session` đã trả 401 nên frontend vẫn tự xóa cookie hỏng).

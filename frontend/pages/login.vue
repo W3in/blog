@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'guest' })
 const { login } = useAuth()
+const route = useRoute()
 const form = reactive({ email: '', password: '' })
 const error = ref('')
 const loading = ref(false)
@@ -10,7 +11,7 @@ async function submit() {
   error.value = ''
   try {
     await login(form.email, form.password)
-    const redirect = useRoute().query.redirect
+    const redirect = route.query.redirect
     await navigateTo(typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/')
   } catch (e: any) {
     if (e.status !== 401) throw e
@@ -26,6 +27,8 @@ async function submit() {
   <AuthCard title="Đăng nhập" subtitle="Chào mừng bạn quay lại My Blog">
     <template #icon><LoginOutlined /></template>
 
+    <!-- reset-password.vue sends people here with ?reset=1 after a successful reset -->
+    <a-alert v-if="route.query.reset" type="success" message="Đã đổi mật khẩu, hãy đăng nhập bằng mật khẩu mới" show-icon class="form-alert" />
     <a-alert v-if="error" type="error" :message="error" show-icon class="form-alert" />
 
     <a-form layout="vertical" :model="form" @finish="submit">
@@ -41,6 +44,8 @@ async function submit() {
         </a-input-password>
       </a-form-item>
 
+      <p class="forgot"><NuxtLink to="/forgot-password">Quên mật khẩu?</NuxtLink></p>
+
       <a-button type="primary" html-type="submit" size="large" block :loading="loading">Đăng nhập</a-button>
     </a-form>
 
@@ -51,5 +56,10 @@ async function submit() {
 <style scoped>
 .form-alert {
   margin-bottom: 16px;
+}
+
+.forgot {
+  margin: -8px 0 16px;
+  text-align: right;
 }
 </style>
