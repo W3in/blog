@@ -13,8 +13,15 @@ class Api::ArticlesController < Api::BaseController
     # User::PUBLIC_JSON: only id, name, avatar of the author (the users table also holds email, token, digest)
     json = @article.as_json(include: { user: User::PUBLIC_JSON })
     if current_user
-      comments = @article.comments.includes(user: { avatar_attachment: :blob }).order(:created_at).map { |comment| comment.as_json_for(current_user) }
-      json.merge!("comments" => comments, "truncated" => false)
+      comments = @article.comments.includes(user: { avatar_attachment: :blob }).order(:created_at)
+      # Which of these this viewer hearted: one query for all comments, kept as a Set for fast include?
+      liked = current_user.likes.where(likeable: comments).pluck(:likeable_id).to_set
+      json.merge!(
+        # Flat list in time order with parent_id: the browser builds the reply tree
+        "comments" => comments.map { |comment| comment.as_json_for(current_user, liked: liked.include?(comment.id)) },
+        "liked" => current_user.likes.exists?(likeable: @article),
+        "truncated" => false
+      )
     else
       # Guests: only the beginning, no comments (comments_count still tells how many there are)
       json.merge!("body" => @article.preview, "truncated" => @article.preview_truncated?)

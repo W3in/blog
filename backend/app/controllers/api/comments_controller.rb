@@ -15,12 +15,13 @@ class Api::CommentsController < Api::BaseController
   def destroy
     comment = Article.visible_to(current_user).find(params[:article_id]).comments.find(params[:id])
     return head :forbidden unless comment.user == current_user || current_user.admin?
-    comment.destroy
+    comment.remove! # emptied instead of deleted when it has replies (Comment#remove!)
     head :no_content
   end
 
   private
     def comment_params
-      params.require(:comment).permit(:body, :anonymous)
+      # parent_id: the comment being answered. Comment checks it belongs to this article
+      params.require(:comment).permit(:body, :anonymous, :parent_id)
     end
 end

@@ -13,7 +13,13 @@ Rails.application.routes.draw do
     resources :users, only: :show                                                 # GET /api/users/:id (public profile)
 
     resources :articles, only: [:index, :show, :create, :update, :destroy] do
-      resources :comments, only: [:create, :destroy]
+      resource :like, only: [:create, :destroy]                                   # POST / DELETE /api/articles/:id/like
+      resources :comments, only: [:create, :destroy] do
+        resource :like, only: [:create, :destroy]                                 # .../comments/:comment_id/like
+      end
+    end
+    resources :notifications, only: :index do                                     # GET /api/notifications
+      post :read, on: :collection                                                 # POST /api/notifications/read
     end
   end
 

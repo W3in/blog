@@ -17,6 +17,8 @@ class User < ApplicationRecord
 
     has_many :articles, dependent: :destroy
     has_many :comments, dependent: :destroy
+    has_many :likes, dependent: :delete_all
+    has_many :notifications, foreign_key: :recipient_id, dependent: :delete_all
 
     normalizes :email, with: ->(e) { e.strip.downcase }
     validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
@@ -38,6 +40,7 @@ class User < ApplicationRecord
     def soft_delete!
         transaction do
             comments.update_all(commenter: DELETED_NAME) # the name each comment was written with
+            notifications.delete_all
             update!(
                 name: DELETED_NAME,
                 email: "deleted-#{id}@deleted.invalid", # .invalid: a domain that can never receive mail

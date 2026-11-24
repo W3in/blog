@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_24_083020) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_24_090003) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -47,6 +47,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_24_083020) do
     t.string "status", default: "public", null: false
     t.integer "user_id"
     t.integer "comments_count", default: 0, null: false
+    t.integer "likes_count", default: 0, null: false
     t.index ["user_id"], name: "index_articles_on_user_id"
   end
 
@@ -58,8 +59,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_24_083020) do
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.boolean "anonymous", default: false, null: false
+    t.integer "parent_id"
+    t.datetime "deleted_at"
+    t.integer "likes_count", default: 0, null: false
     t.index ["article_id"], name: "index_comments_on_article_id"
+    t.index ["parent_id"], name: "index_comments_on_parent_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "likes", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "likeable_type", null: false
+    t.integer "likeable_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["likeable_type", "likeable_id"], name: "index_likes_on_likeable"
+    t.index ["user_id", "likeable_type", "likeable_id"], name: "index_likes_on_user_id_and_likeable_type_and_likeable_id", unique: true
+    t.index ["user_id"], name: "index_likes_on_user_id"
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.integer "recipient_id", null: false
+    t.integer "actor_id", null: false
+    t.string "kind", null: false
+    t.integer "comment_id", null: false
+    t.datetime "read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_notifications_on_actor_id"
+    t.index ["comment_id"], name: "index_notifications_on_comment_id"
+    t.index ["recipient_id", "read_at"], name: "index_notifications_on_recipient_id_and_read_at"
+    t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -79,5 +109,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_24_083020) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "articles", "users"
   add_foreign_key "comments", "articles"
+  add_foreign_key "comments", "comments", column: "parent_id"
   add_foreign_key "comments", "users"
+  add_foreign_key "likes", "users"
+  add_foreign_key "notifications", "comments"
+  add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "notifications", "users", column: "recipient_id"
 end

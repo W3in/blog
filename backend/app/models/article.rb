@@ -14,6 +14,7 @@ class Article < ApplicationRecord
 
     belongs_to :user
     has_many :comments, dependent: :destroy
+    has_many :likes, as: :likeable, dependent: :delete_all
 
     before_validation :sanitize_body
 
