@@ -3,5 +3,5 @@ export type ArticleItem = {
   id: number; title: string; status: string
   excerpt: string; cover_image: string | null; comments_count: number
   created_at: string
-  user: { id: number; name: string; avatar_url: string | null } | null
+  user: { id: number; name: string; avatar_url: string | null; deleted: boolean } | null
 }

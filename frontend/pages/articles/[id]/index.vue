@@ -11,7 +11,7 @@ type Article = {
   id: number; title: string; body: string; status: string; user_id: number
   created_at: string; updated_at: string; comments_count: number
   truncated: boolean // guests: body is only the beginning
-  user: { id: number; name: string; avatar_url: string | null } | null
+  user: { id: number; name: string; avatar_url: string | null; deleted: boolean } | null
   comments?: Comment[] // missing for guests
 }
 
@@ -76,8 +76,9 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
       <header class="post-meta">
         <UserAvatar :name="article.user?.name" :src="article.user?.avatar_url" />
         <div>
-          <NuxtLink v-if="article.user" :to="`/users/${article.user.id}`" class="post-author">{{ article.user.name }}</NuxtLink>
-          <div v-else class="post-author">Không rõ</div>
+          <!-- A deleted account has no page, so its name ("[đã xóa]") is plain text -->
+          <NuxtLink v-if="article.user && !article.user.deleted" :to="`/users/${article.user.id}`" class="post-author">{{ article.user.name }}</NuxtLink>
+          <div v-else class="post-author">{{ article.user?.name ?? 'Không rõ' }}</div>
           <div class="muted small">
             {{ formatDate(article.created_at) }}
             <!-- Rails sets both timestamps to the same value on create, so different means edited -->

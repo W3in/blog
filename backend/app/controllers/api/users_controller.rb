@@ -11,7 +11,7 @@ class Api::UsersController < Api::BaseController
 
   # GET /api/users/:id -> public profile: name, avatar, join date and the articles this viewer may see
   def show
-    user = User.find(params[:id])
+    user = User.find_by!(id: params[:id], deleted_at: nil) # a deleted account has no page: 404
     # visible_to: a guest sees this user's public articles only, the same rule as everywhere else
     articles = Article.visible_to(current_user).where(user: user)
       .includes(user: { avatar_attachment: :blob }).order(created_at: :desc)

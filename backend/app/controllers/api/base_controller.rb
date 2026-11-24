@@ -4,7 +4,7 @@ class Api::BaseController < ActionController::API
   private
     def current_user
         @current_user ||= authenticate_with_http_token do |token, options|
-            User.find_by(auth_token: token)
+            User.find_by(auth_token: token, deleted_at: nil)
         end
     end
 

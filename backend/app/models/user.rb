@@ -5,7 +5,10 @@ class User < ApplicationRecord
     has_one_attached :avatar
 
     # What anyone may see about a user, e.g. next to an article or a comment (never email, token or digest)
-    PUBLIC_JSON = { only: [:id, :name], methods: :avatar_url }
+    PUBLIC_JSON = { only: [:id, :name], methods: [:avatar_url, :deleted] }
+
+    # Name shown instead of a deleted account's name, on its articles and comments
+    DELETED_NAME = "[đã xóa]"
 
     # Reset link token: expires after 15 minutes, and stops working once the password or the email changes
     generates_token_for :password_reset, expires_in: 15.minutes do
@@ -23,6 +26,28 @@ class User < ApplicationRecord
     # /api/files/... link to the avatar (goes through the Nuxt proxy like article images), nil when none
     def avatar_url
         Rails.application.routes.url_helpers.rails_blob_path(avatar, only_path: true) if avatar.attached?
+    end
+
+    # true once the account was deleted (the row stays so its articles and comments keep an author)
+    def deleted
+        deleted_at.present?
+    end
+
+    # Reddit-style account deletion: articles and comments stay, everything that identifies the person goes.
+    # Nobody can log in to it again (random password, new token, email freed for a new sign-up)
+    def soft_delete!
+        transaction do
+            comments.update_all(commenter: DELETED_NAME) # the name each comment was written with
+            update!(
+                name: DELETED_NAME,
+                email: "deleted-#{id}@deleted.invalid", # .invalid: a domain that can never receive mail
+                password: SecureRandom.hex(32),
+                auth_token: User.generate_unique_secure_token,
+                admin: false,
+                deleted_at: Time.current
+            )
+        end
+        avatar.purge
     end
 
     # What the logged-in user sees about themselves

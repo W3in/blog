@@ -25,30 +25,68 @@ async function save() {
 </script>
 
 <template>
-  <a-card v-if="user" title="Email">
-    <p class="current">Email hiện tại: <strong>{{ user.email }}</strong></p>
-    <p class="muted hint">Email dùng để đăng nhập và nhận link đặt lại mật khẩu. Người khác không thấy email của bạn.</p>
+  <a-form v-if="user" ref="formRef" layout="vertical" :model="form" @finish="save">
+    <SettingsPanel title="Email" description="Dùng để đăng nhập và nhận link đặt lại mật khẩu. Người khác không thấy email của bạn.">
+      <div class="current">
+        <span class="current-icon"><MailOutlined /></span>
+        <div class="current-text">
+          <div class="current-label">Email hiện tại</div>
+          <div class="current-value">{{ user.email }}</div>
+        </div>
+      </div>
 
-    <a-form ref="formRef" layout="vertical" :model="form" @finish="save">
       <a-form-item label="Email mới" name="email" :rules="[{ required: true, type: 'email', message: 'Nhập đúng định dạng email' }]" v-bind="fieldState(errors, 'email', 'Email')">
-        <a-input v-model:value="form.email" type="email" autocomplete="email" placeholder="ban@vidu.com" />
+        <a-input v-model:value="form.email" size="large" type="email" autocomplete="email" placeholder="ban@vidu.com" />
       </a-form-item>
-      <a-form-item label="Mật khẩu hiện tại" name="password_challenge" :rules="[{ required: true, message: 'Nhập mật khẩu để xác nhận' }]" v-bind="fieldState(errors, 'password_challenge', 'Mật khẩu')">
-        <a-input-password v-model:value="form.password_challenge" autocomplete="current-password" />
+      <a-form-item label="Mật khẩu hiện tại" name="password_challenge" :rules="[{ required: true, message: 'Nhập mật khẩu để xác nhận' }]" v-bind="fieldState(errors, 'password_challenge', 'Mật khẩu')" class="last-item">
+        <a-input-password v-model:value="form.password_challenge" size="large" autocomplete="current-password" />
       </a-form-item>
-      <a-button type="primary" html-type="submit" :loading="saving">Đổi email</a-button>
-    </a-form>
-  </a-card>
+
+      <template #footer>
+        <a-button type="primary" html-type="submit" :loading="saving">Đổi email</a-button>
+      </template>
+    </SettingsPanel>
+  </a-form>
 </template>
 
 <style scoped>
+/* The current address as a small highlighted row above the form */
 .current {
-  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f6f8fb;
+}
+
+.current-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.current-text {
+  min-width: 0;
+}
+
+.current-label {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.current-value {
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.hint {
-  margin: 0 0 16px;
-  font-size: 13px;
+.last-item {
+  margin-bottom: 0;
 }
 </style>

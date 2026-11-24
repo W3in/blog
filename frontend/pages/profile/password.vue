@@ -35,27 +35,34 @@ async function save() {
 </script>
 
 <template>
-  <a-card title="Đổi mật khẩu">
-    <p class="muted hint">Đổi xong, mọi thiết bị khác sẽ bị đăng xuất; máy này vẫn giữ đăng nhập.</p>
-
-    <a-form ref="formRef" layout="vertical" :model="form" @finish="save">
+  <a-form ref="formRef" layout="vertical" :model="form" @finish="save">
+    <SettingsPanel title="Đổi mật khẩu" description="Đổi xong, mọi thiết bị khác sẽ bị đăng xuất; máy này vẫn giữ đăng nhập.">
       <a-form-item label="Mật khẩu hiện tại" name="password_challenge" :rules="[{ required: true, message: 'Nhập mật khẩu hiện tại' }]" v-bind="fieldState(errors, 'password_challenge', 'Mật khẩu hiện tại')">
-        <a-input-password v-model:value="form.password_challenge" autocomplete="current-password" />
+        <a-input-password v-model:value="form.password_challenge" size="large" autocomplete="current-password" />
       </a-form-item>
+
+      <a-divider class="divider" />
+
       <a-form-item label="Mật khẩu mới" name="password" :rules="[{ required: true, min: 6, message: 'Ít nhất 6 ký tự' }]" v-bind="fieldState(errors, 'password', 'Mật khẩu mới')">
-        <a-input-password v-model:value="form.password" autocomplete="new-password" />
+        <a-input-password v-model:value="form.password" size="large" autocomplete="new-password" placeholder="Ít nhất 6 ký tự" />
       </a-form-item>
-      <a-form-item label="Nhập lại mật khẩu mới" name="password_confirmation" :rules="confirmRules" v-bind="fieldState(errors, 'password_confirmation', 'Mật khẩu')">
-        <a-input-password v-model:value="form.password_confirmation" autocomplete="new-password" />
+      <a-form-item label="Nhập lại mật khẩu mới" name="password_confirmation" :rules="confirmRules" v-bind="fieldState(errors, 'password_confirmation', 'Mật khẩu')" class="last-item">
+        <a-input-password v-model:value="form.password_confirmation" size="large" autocomplete="new-password" />
       </a-form-item>
-      <a-button type="primary" html-type="submit" :loading="saving">Đổi mật khẩu</a-button>
-    </a-form>
-  </a-card>
+
+      <template #footer>
+        <a-button type="primary" html-type="submit" :loading="saving">Đổi mật khẩu</a-button>
+      </template>
+    </SettingsPanel>
+  </a-form>
 </template>
 
 <style scoped>
-.hint {
-  margin: 0 0 16px;
-  font-size: 13px;
+.divider {
+  margin: 4px 0 20px;
+}
+
+.last-item {
+  margin-bottom: 0;
 }
 </style>

@@ -1,35 +1,46 @@
 <script setup lang="ts">
 // Parent page of /profile, /profile/email, /profile/password, /profile/delete (Nuxt nested routes:
-// pages/profile.vue + the pages/profile/ folder). It draws the sidebar; <NuxtPage /> shows the chosen section.
-// The middleware here also guards every child page
+// pages/profile.vue + the pages/profile/ folder). It draws the header and the menu; <NuxtPage /> shows the
+// chosen section. The middleware here also guards every child page
 definePageMeta({ middleware: 'auth' })
 const { user } = useAuth()
 </script>
 
 <template>
   <main v-if="user" class="profile-page">
-    <h1 class="page-title">Hồ sơ của tôi</h1>
+    <ProfileHeader :name="user.name" :avatar-url="user.avatar_url">
+      <template #meta>
+        <span><MailOutlined /> {{ user.email }}</span>
+        <span><CalendarOutlined /> Thành viên từ {{ formatDate(user.created_at) }}</span>
+      </template>
+      <template #actions>
+        <NuxtLink v-slot="{ href, navigate }" :to="`/users/${user.id}`" custom>
+          <a-button :href="href" @click="navigate"><EyeOutlined /> Xem trang công khai</a-button>
+        </NuxtLink>
+      </template>
+    </ProfileHeader>
 
     <div class="profile-layout">
-      <aside class="profile-side">
-        <div class="side-card">
-          <UserAvatar :name="user.name" :src="user.avatar_url" :size="72" />
-          <div class="side-info">
-            <div class="side-name">{{ user.name }}</div>
-            <div class="muted side-email">{{ user.email }}</div>
-            <div class="muted side-since">Thành viên từ {{ formatDate(user.created_at) }}</div>
-            <NuxtLink :to="`/users/${user.id}`" class="side-public"><EyeOutlined /> Xem trang công khai</NuxtLink>
-          </div>
-        </div>
-
-        <!-- RouterLink marks the current page with aria-current="page": the CSS styles that, screen readers read it -->
-        <nav class="side-nav" aria-label="Mục hồ sơ">
-          <NuxtLink to="/profile" class="side-link"><UserOutlined /> Thông tin cá nhân</NuxtLink>
-          <NuxtLink to="/profile/email" class="side-link"><MailOutlined /> Email</NuxtLink>
-          <NuxtLink to="/profile/password" class="side-link"><LockOutlined /> Mật khẩu</NuxtLink>
-          <NuxtLink to="/profile/delete" class="side-link danger"><DeleteOutlined /> Xóa tài khoản</NuxtLink>
-        </nav>
-      </aside>
+      <!-- RouterLink marks the current page with aria-current="page": the CSS styles that, screen readers read it.
+           Icons are written out one by one: Nuxt imports an icon only when it sees its tag in the template -->
+      <nav class="side-nav" aria-label="Mục hồ sơ">
+        <NuxtLink to="/profile" class="side-link">
+          <span class="side-icon"><UserOutlined /></span>
+          <span class="side-text"><span class="side-title">Thông tin cá nhân</span><span class="side-desc">Ảnh đại diện, tên hiển thị</span></span>
+        </NuxtLink>
+        <NuxtLink to="/profile/email" class="side-link">
+          <span class="side-icon"><MailOutlined /></span>
+          <span class="side-text"><span class="side-title">Email</span><span class="side-desc">Địa chỉ đăng nhập</span></span>
+        </NuxtLink>
+        <NuxtLink to="/profile/password" class="side-link">
+          <span class="side-icon"><LockOutlined /></span>
+          <span class="side-text"><span class="side-title">Mật khẩu</span><span class="side-desc">Đổi mật khẩu đăng nhập</span></span>
+        </NuxtLink>
+        <NuxtLink to="/profile/delete" class="side-link danger">
+          <span class="side-icon"><DeleteOutlined /></span>
+          <span class="side-text"><span class="side-title">Xóa tài khoản</span><span class="side-desc">Không thể hoàn tác</span></span>
+        </NuxtLink>
+      </nav>
 
       <section class="profile-main">
         <NuxtPage />
@@ -41,121 +52,140 @@ const { user } = useAuth()
 <style scoped>
 .profile-layout {
   display: grid;
-  /* fixed sidebar, the section takes the rest. minmax(0, …): a plain 1fr never shrinks below its content,
+  /* fixed menu, the section takes the rest. minmax(0, …): a plain 1fr never shrinks below its content,
      so the one-line menu on phones would push the whole page wider than the screen */
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
 /* Stays in view while a long section scrolls (60px header + a little space) */
-.profile-side {
+.side-nav {
   position: sticky;
   top: 76px;
-}
-
-.side-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 16px 16px;
-  border: 1px solid #f0f0f0;
-  border-radius: 12px;
-  background: #fff;
-  text-align: center;
-}
-
-.side-info {
-  min-width: 0; /* lets long names/emails wrap inside the card on phones */
-}
-
-.side-name {
-  font-size: 16px;
-  font-weight: 600;
-  overflow-wrap: anywhere; /* a 50-letter name without spaces still wraps */
-}
-
-.side-email {
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-.side-since {
-  margin-top: 2px;
-  font-size: 12px;
-}
-
-.side-public {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 12px;
-  padding: 6px;
-  border: 1px solid #f0f0f0;
-  border-radius: 12px;
-  background: #fff;
+  gap: 4px;
 }
 
 .side-link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 10px 12px;
-  border-radius: 8px;
-  color: rgba(0, 0, 0, 0.75);
+  border-radius: 10px;
+  color: rgba(0, 0, 0, 0.8);
   text-decoration: none;
-  white-space: nowrap;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s;
 }
 
 .side-link:hover {
-  background: #f5f5f5;
+  background: #fff;
 }
 
+.side-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #f0f0f0;
+  border-radius: 9px;
+  background: #fff;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 16px;
+}
+
+.side-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.side-title {
+  font-weight: 500;
+}
+
+.side-desc {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+/* Current section: white card, filled blue icon, a blue bar on the left edge */
 .side-link[aria-current='page'] {
-  background: #e6f4ff;
-  color: #1677ff;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.side-link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px;
+  background: #1677ff;
+}
+
+.side-link[aria-current='page'] .side-icon {
+  border-color: #1677ff;
+  background: #1677ff;
+  color: #fff;
+}
+
+.side-link[aria-current='page'] .side-title {
   font-weight: 600;
 }
 
-.side-link.danger {
-  color: #ff4d4f;
+.side-link.danger .side-title,
+.side-link.danger .side-icon {
+  color: #cf1322;
 }
 
-.side-link.danger[aria-current='page'] {
-  background: #fff1f0;
+.side-link.danger[aria-current='page'] .side-icon {
+  border-color: #ff4d4f;
+  background: #ff4d4f;
+  color: #fff;
 }
 
-/* Phones and narrow tablets: sidebar on top, the menu becomes one row you can swipe sideways */
+.side-link.danger[aria-current='page']::before {
+  background: #ff4d4f;
+}
+
+/* Phones and narrow tablets: the menu becomes one row of chips you can swipe sideways */
 @media (max-width: 720px) {
   .profile-layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-
-  .profile-side {
-    position: static;
-  }
-
-  /* Avatar on the left, the text beside it */
-  .side-card {
-    flex-direction: row;
-    gap: 16px;
-    padding: 16px;
-    text-align: left;
+    gap: 12px;
   }
 
   .side-nav {
+    position: static;
     flex-direction: row;
     overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .side-link {
+    flex: none;
+    padding: 6px 14px 6px 6px;
+    border: 1px solid #f0f0f0;
+    border-radius: 999px;
+    background: #fff;
+  }
+
+  .side-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 14px;
+  }
+
+  .side-desc,
+  .side-link[aria-current='page']::before {
+    display: none;
   }
 }
 </style>

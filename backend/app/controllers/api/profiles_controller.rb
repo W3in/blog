@@ -39,11 +39,11 @@ class Api::ProfilesController < Api::BaseController
     end
   end
 
-  # DELETE /api/profile { password_challenge } -> 204. Deletes the user with their articles, comments and avatar
+  # DELETE /api/profile { password_challenge } -> 204. Reddit-style: articles and comments stay with the
+  # author shown as "[đã xóa]"; name, email, avatar and the login go (User#soft_delete!)
   def destroy
-    # authenticate, not password_challenge: destroy runs no validations
     if current_user.authenticate(params[:password_challenge].to_s)
-      current_user.destroy
+      current_user.soft_delete!
       head :no_content
     else
       current_user.errors.add(:password_challenge, :invalid) # same "không đúng" as the other forms

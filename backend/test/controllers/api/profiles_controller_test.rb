@@ -190,14 +190,40 @@ class Api::ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert User.exists?(users(:alice).id)
   end
 
-  test "delete account removes the user, their articles and comments, and the token stops working" do
+  test "delete account Reddit-style: articles and comments stay as [đã xóa], login and personal data go" do
     alice = users(:alice)
-    assert_difference -> { User.count } => -1, -> { Article.count } => -alice.articles.count do
+    put "/api/profile/avatar", params: { file: fixture_file_upload("pixel.png", "image/png", true) }, headers: auth(alice)
+
+    assert_no_difference -> { Article.count }, -> { Comment.count } do
       delete "/api/profile", params: { password_challenge: "password123" }, headers: auth(alice)
     end
     assert_response :no_content
-    assert_not Comment.exists?(user_id: alice.id)
+
+    alice.reload
+    assert alice.deleted
+    assert_equal "[đã xóa]", alice.name
+    assert_not_equal "alice@example.com", alice.email
+    assert_not alice.avatar.attached?
+
+    # the old token and the old password no longer log in
     get "/api/session", headers: { "Authorization" => "Bearer alice-token" }
     assert_response :unauthorized
+    post "/api/session", params: { email: "alice@example.com", password: "password123" }
+    assert_response :unauthorized
+
+    # the article is still there, its author and her comments show as deleted, nothing personal leaks
+    get "/api/articles/#{articles(:public_post).id}", headers: auth(users(:bob))
+    body = response.parsed_body
+    assert_equal({ "id" => alice.id, "name" => "[đã xóa]", "avatar_url" => nil, "deleted" => true }, body["user"])
+    alice_comment = body["comments"].find { |c| c["id"] == comments(:alice_on_public).id }
+    assert_equal "[đã xóa]", alice_comment["commenter"]
+    assert_equal "[đã xóa]", alice_comment["current_name"] # same as commenter: no "renamed" tooltip
+    assert_not_includes response.body, "Alice"
+
+    # no public page, and the email is free for a new account
+    get "/api/users/#{alice.id}"
+    assert_response :not_found
+    post "/api/registration", params: { user: { name: "Alice 2", email: "alice@example.com", password: "secret123", password_confirmation: "secret123" } }
+    assert_response :created
   end
 end
