@@ -1,22 +1,18 @@
 <script setup lang="ts">
-// Rails decides what each viewer gets: no names/ids for anonymous comments, can_destroy per comment
-type Comment = {
-  id: number; body: string; anonymous: boolean
-  commenter: string | null // name when it was written
-  current_name: string | null // name now (null for anonymous)
-  avatar_url: string | null
-  created_at: string; can_destroy: boolean
-}
+import type { CommentItem, ThreadContext } from '~/types/comment'
+
+// Rails decides what each viewer gets: no names/ids for anonymous comments, can_destroy and liked per comment
 type Article = {
   id: number; title: string; body: string; status: string; user_id: number
   created_at: string; updated_at: string; comments_count: number
+  likes_count: number; liked?: boolean // liked: only for members
   truncated: boolean // guests: body is only the beginning
   user: { id: number; name: string; avatar_url: string | null; deleted: boolean } | null
-  comments?: Comment[] // missing for guests
+  comments?: CommentItem[] // missing for guests
 }
 
 const { headers, user } = useAuth()
-const id = useRoute().params.id
+const id = useRoute().params.id as string
 const { data: article, refresh, error } = await useFetch<Article>(`/api/articles/${id}`, { headers })
 if (error.value) {
   throw createError({
@@ -27,6 +23,19 @@ if (error.value) {
 }
 
 const comments = computed(() => article.value?.comments ?? [])
+
+// Rails sends one flat list (oldest first) with parent_id; group it into "replies of comment X"
+const childrenOf = computed(() => {
+  const map: Record<number, CommentItem[]> = {}
+  for (const c of comments.value) {
+    if (c.parent_id) (map[c.parent_id] ??= []).push(c) // ??=: create the list the first time
+  }
+  return map
+})
+const topLevel = computed(() => comments.value.filter(c => !c.parent_id))
+
+// Every CommentThread, at any depth, reads this with inject('thread')
+provide<ThreadContext>('thread', { articleId: id, childrenOf, refresh: () => refresh() })
 const edited = computed(() => article.value && article.value.updated_at !== article.value.created_at)
 
 // Same rules as ArticlesController. These only hide buttons; Rails still answers 403 to anyone who tries
@@ -36,32 +45,6 @@ const canDestroyArticle = computed(() => isAuthor.value || !!user.value?.admin)
 async function destroyArticle() {
   await $fetch(`/api/articles/${id}`, { method: 'DELETE', headers: headers.value })
   await navigateTo('/')
-}
-
-// --- Comment box ---
-const newComment = reactive({ body: '', anonymous: false })
-const commentError = ref('')
-const posting = ref(false)
-
-async function addComment() {
-  if (!newComment.body.trim() || posting.value) return
-  posting.value = true
-  commentError.value = ''
-  try {
-    await $fetch(`/api/articles/${id}/comments`, { method: 'POST', body: { comment: newComment }, headers: headers.value })
-    newComment.body = ''
-    await refresh() // reload the article so the new comment and the new count show up
-  } catch (e: any) {
-    if (e.status !== 422) throw e
-    commentError.value = e.data?.body ? `Bình luận ${e.data.body.join(', ')}` : 'Không gửi được bình luận'
-  } finally {
-    posting.value = false
-  }
-}
-
-async function destroyComment(commentId: number) {
-  await $fetch(`/api/articles/${id}/comments/${commentId}`, { method: 'DELETE', headers: headers.value })
-  await refresh()
 }
 
 // Guests come back to this article after logging in
@@ -95,7 +78,11 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
       <div class="rich-content post-body" :class="{ faded: article.truncated }" v-html="article.body" />
 
       <footer class="post-actions">
-        <span class="pill"><MessageOutlined /> {{ article.comments_count }} bình luận</span>
+        <a-space :size="8">
+          <!-- Guests see the count; clicking sends them to log in (LikeButton) -->
+          <LikeButton :url="`/api/articles/${id}/like`" :count="article.likes_count" :liked="!!article.liked" />
+          <span class="pill"><MessageOutlined /> {{ article.comments_count }} bình luận</span>
+        </a-space>
         <a-space v-if="isAuthor || canDestroyArticle" :size="4">
           <NuxtLink v-if="isAuthor" v-slot="{ href, navigate }" :to="`/articles/${id}/edit`" custom>
             <a-button type="text" :href="href" @click="navigate"><EditOutlined /> Sửa</a-button>
@@ -126,51 +113,13 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
     </section>
 
     <section v-else class="comments">
-      <!-- No form labels or "*": one box with the options underneath, like Reddit's comment box -->
-      <div class="composer">
-        <a-textarea
-          v-model:value="newComment.body"
-          :bordered="false"
-          :auto-size="{ minRows: 2, maxRows: 12 }"
-          placeholder="Viết bình luận..."
-          aria-label="Nội dung bình luận"
-          @keydown.ctrl.enter="addComment"
-        />
-        <div class="composer-bar">
-          <a-checkbox v-model:checked="newComment.anonymous">Ẩn danh</a-checkbox>
-          <span class="muted small composer-as">
-            {{ newComment.anonymous ? 'Không ai thấy tên bạn' : `Bình luận với tên ${user.name}` }}
-          </span>
-          <a-button type="primary" shape="round" :disabled="!newComment.body.trim()" :loading="posting" @click="addComment">Bình luận</a-button>
-        </div>
-      </div>
-      <p v-if="commentError" class="composer-error">{{ commentError }}</p>
+      <CommentComposer :article-id="id" @posted="refresh" />
 
       <h2 class="comments-title">Bình luận ({{ comments.length }})</h2>
       <p v-if="!comments.length" class="muted">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
 
-      <div v-for="c in comments" :key="c.id" class="comment">
-        <a-avatar v-if="c.anonymous" size="small" class="comment-avatar" :style="{ backgroundColor: '#8c8c8c' }">
-          <template #icon><UserOutlined /></template>
-        </a-avatar>
-        <UserAvatar v-else :name="c.commenter" :src="c.avatar_url" size="small" class="comment-avatar" />
-
-        <div class="comment-main">
-          <div class="small">
-            <!-- Renamed since: keep the old name, show the current one on hover / tap / keyboard focus -->
-            <a-tooltip v-if="!c.anonymous && c.current_name && c.current_name !== c.commenter"
-              :title="`Hiện tên là ${c.current_name}`" :trigger="['hover', 'click', 'focus']">
-              <span class="comment-author renamed" tabindex="0">{{ c.commenter }}</span>
-            </a-tooltip>
-            <span v-else class="comment-author" :class="{ anonymous: c.anonymous }">{{ c.anonymous ? 'Ẩn danh' : c.commenter }}</span>
-            <span class="muted"> • {{ formatDateTime(c.created_at) }}</span>
-          </div>
-          <p class="comment-body">{{ c.body }}</p>
-          <a-popconfirm v-if="c.can_destroy" title="Xóa bình luận này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyComment(c.id)">
-            <a-button type="text" size="small" danger class="comment-delete">Xóa</a-button>
-          </a-popconfirm>
-        </div>
-      </div>
+      <!-- Only top-level comments here; each CommentThread draws its own replies -->
+      <CommentThread v-for="c in topLevel" :key="c.id" :comment="c" :depth="0" />
     </section>
   </main>
 </template>
@@ -271,95 +220,10 @@ a.post-author:hover {
   background: #fff;
 }
 
-/* One rounded box around the textarea and its bottom bar; blue border while typing */
-.composer {
-  border: 1px solid #d9d9d9;
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.composer:focus-within {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
-}
-
-.composer-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 8px 12px;
-  border-top: 1px solid #f5f5f5;
-}
-
-/* Pushes the button to the right */
-.composer-as {
-  flex: 1;
-}
-
-.composer-error {
-  margin: 8px 0 0;
-  color: #ff4d4f;
-}
-
 .comments-title {
-  margin: 24px 0 12px;
+  margin: 24px 0 4px;
   font-size: 16px;
   font-weight: 600;
-}
-
-/* Avatar column + a thin line under it, like a Reddit thread */
-.comment {
-  position: relative;
-  display: flex;
-  gap: 10px;
-  padding-bottom: 12px;
-}
-
-.comment-avatar {
-  flex: none;
-}
-
-.comment::before {
-  content: '';
-  position: absolute;
-  top: 30px;
-  bottom: 4px;
-  left: 11px;
-  width: 2px;
-  border-radius: 1px;
-  background: #f0f0f0;
-}
-
-.comment-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-author {
-  font-weight: 600;
-}
-
-/* Dotted underline + help cursor: tells the reader there is more to see here */
-.comment-author.renamed {
-  border-bottom: 1px dotted currentColor;
-  cursor: help;
-}
-
-.comment-author.anonymous {
-  font-style: italic;
-  color: rgba(0, 0, 0, 0.55);
-}
-
-/* Keep the line breaks the writer typed */
-.comment-body {
-  margin: 2px 0 0;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-}
-
-.comment-delete {
-  margin-left: -8px; /* text button padding: line up with the comment text */
 }
 
 @media (max-width: 576px) {

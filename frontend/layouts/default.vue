@@ -21,6 +21,8 @@ const { user, logout } = useAuth()
               </a-button>
             </NuxtLink>
 
+            <NotificationBell />
+
             <!-- Name + logout live in a menu, so the header stays one short row on phones -->
             <a-dropdown placement="bottomRight" :trigger="['click']">
               <button type="button" class="user-menu">

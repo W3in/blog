@@ -17,7 +17,10 @@ defineProps<{ item: ArticleItem }>()
       </div>
       <h2 class="card-title">{{ item.title }}</h2>
       <p v-if="item.excerpt" class="card-excerpt">{{ item.excerpt }}</p>
-      <span class="pill"><MessageOutlined /> {{ item.comments_count }} bình luận</span>
+      <span class="pills">
+        <span class="pill"><HeartOutlined /> {{ item.likes_count }}</span>
+        <span class="pill"><MessageOutlined /> {{ item.comments_count }} bình luận</span>
+      </span>
     </div>
     <!-- alt="": decoration only, the title already says what the post is -->
     <img v-if="item.cover_image" :src="item.cover_image" alt="" class="card-thumb" loading="lazy">
@@ -59,6 +62,11 @@ defineProps<{ item: ArticleItem }>()
 
 .card-author {
   font-weight: 600;
+}
+
+.pills {
+  display: flex;
+  gap: 8px;
 }
 
 .status-tag {
