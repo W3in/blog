@@ -17,7 +17,8 @@ const { data: article, refresh, error } = await useFetch<Article>(`/api/articles
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 500,
-    statusMessage: 'Bài viết này không tồn tại.',
+    // Only a real 404 means "does not exist"; no answer at all (server down) gets the generic message
+    statusMessage: error.value.statusCode === 404 ? 'Bài viết này không tồn tại.' : undefined,
     fatal: true
   })
 }

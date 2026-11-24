@@ -7,14 +7,17 @@ const props = defineProps<{ error: NuxtError }>()
 
 const titles: Record<number, string> = {
   403: 'Bạn không có quyền xem trang này',
-  404: 'Không tìm thấy trang',
-  500: 'Có lỗi xảy ra'
+  404: 'Không tìm thấy trang'
 }
-const title = computed(() => titles[props.error.statusCode] ?? 'Có lỗi xảy ra')
+const serverDown = computed(() => props.error.statusCode >= 500)
+const title = computed(() => titles[props.error.statusCode] ?? (serverDown.value ? 'Máy chủ chưa phản hồi' : 'Có lỗi xảy ra'))
 // Our own createError messages are already Vietnamese; Nuxt's default ones ("Page not found: /x") are not
 const detail = computed(() => {
   const msg = props.error.statusMessage
-  return msg && !/not found|error/i.test(msg) ? msg : 'Trang bạn tìm có thể đã bị xóa hoặc đường dẫn không đúng.'
+  if (msg && !/not found|error|fetch/i.test(msg)) return msg
+  return serverDown.value
+    ? 'Máy chủ đang tạm ngừng hoặc mạng bị gián đoạn. Hãy thử lại sau ít phút.'
+    : 'Trang bạn tìm có thể đã bị xóa hoặc đường dẫn không đúng.'
 })
 
 useHead({ title: `${props.error.statusCode} - ${title.value}` })
@@ -33,7 +36,11 @@ const goHome = () => clearError({ redirect: '/' })
       <div class="code">{{ error.statusCode }}</div>
       <h1 class="title">{{ title }}</h1>
       <p class="muted">{{ detail }}</p>
-      <a-button type="primary" size="large" @click="goHome"><HomeOutlined /> Về trang chủ</a-button>
+      <a-space wrap class="actions">
+        <!-- reloadNuxtApp: load the same address again from the server (the "try again" for a server that was down) -->
+        <a-button v-if="serverDown" size="large" @click="reloadNuxtApp()"><ReloadOutlined /> Thử lại</a-button>
+        <a-button type="primary" size="large" @click="goHome"><HomeOutlined /> Về trang chủ</a-button>
+      </a-space>
     </main>
   </NuxtLayout>
   </a-config-provider>

@@ -13,7 +13,8 @@ const { data: profile, error } = await useFetch<PublicProfile>(`/api/users/${id}
 if (error.value) {
   throw createError({
     statusCode: error.value.statusCode ?? 500,
-    statusMessage: 'Không tìm thấy người dùng này.',
+    // Only a real 404 means "does not exist"; no answer at all (server down) gets the generic message
+    statusMessage: error.value.statusCode === 404 ? 'Không tìm thấy người dùng này.' : undefined,
     fatal: true
   })
 }
