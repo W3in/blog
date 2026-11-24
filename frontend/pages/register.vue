@@ -45,13 +45,13 @@ async function submit() {
         </a-input>
       </a-form-item>
 
-      <a-form-item label="Mật khẩu" name="password" :rules="[{ required: true, min: 6, message: 'Ít nhất 6 ký tự' }]" v-bind="fieldState(errors, 'password', 'Password')">
+      <a-form-item label="Mật khẩu" name="password" :rules="[{ required: true, min: 6, message: 'Ít nhất 6 ký tự' }]" v-bind="fieldState(errors, 'password', 'Mật khẩu')">
         <a-input-password v-model:value="form.password" size="large" placeholder="Ít nhất 6 ký tự" autocomplete="new-password">
           <template #prefix><LockOutlined /></template>
         </a-input-password>
       </a-form-item>
 
-      <a-form-item label="Nhập lại mật khẩu" name="password_confirmation" :rules="confirmRules" v-bind="fieldState(errors, 'password_confirmation', 'Password confirmation')">
+      <a-form-item label="Nhập lại mật khẩu" name="password_confirmation" :rules="confirmRules" v-bind="fieldState(errors, 'password_confirmation', 'Mật khẩu nhập lại')">
         <a-input-password v-model:value="form.password_confirmation" size="large" placeholder="Nhập lại mật khẩu" autocomplete="new-password">
           <template #prefix><LockOutlined /></template>
         </a-input-password>

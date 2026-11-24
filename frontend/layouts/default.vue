@@ -8,7 +8,7 @@ const { user, logout } = useAuth()
       <div class="site-header-inner">
         <NuxtLink to="/" class="brand">
           <span class="brand-icon"><ReadOutlined /></span>
-          My Blog
+          Blog của tôi
         </NuxtLink>
 
         <!-- custom: NuxtLink gives the href, a-button draws it, so it is one real <a> (no button inside a link) -->
@@ -16,8 +16,8 @@ const { user, logout } = useAuth()
           <template v-if="user">
             <NuxtLink v-slot="{ href, navigate }" to="/articles/new" custom>
               <!-- aria-label: on phones the text is hidden, screen readers still need a name -->
-              <a-button type="primary" :href="href" aria-label="New Article" @click="navigate">
-                <PlusOutlined /><span class="hide-mobile">New Article</span>
+              <a-button type="primary" :href="href" aria-label="Viết bài" @click="navigate">
+                <EditOutlined /><span class="hide-mobile">Viết bài</span>
               </a-button>
             </NuxtLink>
 
@@ -58,7 +58,7 @@ const { user, logout } = useAuth()
       <slot />
     </div>
 
-    <footer class="site-footer">© {{ new Date().getFullYear() }} My Blog</footer>
+    <footer class="site-footer">© {{ new Date().getFullYear() }} Blog của tôi</footer>
   </div>
 </template>
 

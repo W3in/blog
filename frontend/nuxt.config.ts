@@ -2,6 +2,8 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  // <html lang="vi">: screen readers read Vietnamese, the browser stops offering to translate the page
+  app: { head: { title: 'Blog của tôi', htmlAttrs: { lang: 'vi' } } },
   // Rails uses 3000, so Nuxt runs on 8000
   devServer: { port: 8000 },
   modules: ['@ant-design-vue/nuxt'],

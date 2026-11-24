@@ -24,7 +24,7 @@ async function submit() {
 </script>
 
 <template>
-  <AuthCard title="Đăng nhập" subtitle="Chào mừng bạn quay lại My Blog">
+  <AuthCard title="Đăng nhập" subtitle="Chào mừng bạn quay lại Blog của tôi">
     <template #icon><LoginOutlined /></template>
 
     <!-- reset-password.vue sends people here with ?reset=1 after a successful reset -->

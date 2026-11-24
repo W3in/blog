@@ -20,11 +20,11 @@ const form = reactive<Article>({
 <template>
   <a-form layout="vertical" :model="form" @finish="emit('submit', { ...form })">
     <!-- No labels: the placeholders say what goes where, like Reddit's "Create post" -->
-    <a-form-item v-bind="fieldState(errors, 'title', 'Title')">
+    <a-form-item v-bind="fieldState(errors, 'title', 'Tiêu đề')">
       <a-input v-model:value="form.title" size="large" placeholder="Tiêu đề" :maxlength="300" show-count class="title-input" />
     </a-form-item>
 
-    <a-form-item v-bind="fieldState(errors, 'body', 'Body')">
+    <a-form-item v-bind="fieldState(errors, 'body', 'Nội dung')">
       <RichEditor v-model="form.body" placeholder="Bạn muốn chia sẻ điều gì? Dùng thanh công cụ để định dạng hoặc chèn ảnh." />
     </a-form-item>
 

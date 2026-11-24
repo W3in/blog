@@ -32,8 +32,10 @@ async function go(n: Notice) {
 <template>
   <a-dropdown :open="open" :trigger="['click']" placement="bottomRight" @open-change="onOpenChange">
     <button type="button" class="bell" :aria-label="`Thông báo, ${data.unread_count} chưa đọc`">
-      <a-badge :count="data.unread_count" size="small" :offset="[2, -2]">
-        <BellOutlined class="bell-icon" />
+      <!-- Ant's badge is red by default; overflow-count: 100 and more shows "99+" -->
+      <a-badge :count="data.unread_count" :overflow-count="99" :offset="[4, -2]">
+        <BellFilled v-if="data.unread_count" class="bell-icon unread" />
+        <BellOutlined v-else class="bell-icon" />
       </a-badge>
     </button>
 
@@ -83,8 +85,26 @@ async function go(n: Notice) {
 }
 
 .bell-icon {
-  font-size: 18px;
+  font-size: 20px;
   color: rgba(0, 0, 0, 0.7);
+}
+
+/* Something new: the bell turns red and rings once */
+.bell-icon.unread {
+  color: #ff4d4f;
+  animation: ring 0.8s ease;
+}
+
+@keyframes ring {
+  20%,
+  60% {
+    transform: rotate(14deg);
+  }
+
+  40%,
+  80% {
+    transform: rotate(-14deg);
+  }
 }
 
 /* The dropdown is a plain box: Ant only positions it */
