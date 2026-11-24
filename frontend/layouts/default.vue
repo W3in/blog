@@ -31,6 +31,7 @@ const { user, logout } = useAuth()
               <template #overlay>
                 <a-menu>
                   <a-menu-item key="email" disabled>{{ user.email }}</a-menu-item>
+                  <a-menu-item key="profile" @click="navigateTo('/profile')"><UserOutlined /> Hồ sơ của tôi</a-menu-item>
                   <a-menu-divider />
                   <a-menu-item key="logout" danger @click="logout"><LogoutOutlined /> Đăng xuất</a-menu-item>
                 </a-menu>

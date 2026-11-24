@@ -2,7 +2,9 @@
 // Rails decides what each viewer gets: no names/ids for anonymous comments, can_destroy per comment
 type Comment = {
   id: number; body: string; anonymous: boolean
-  commenter: string | null; created_at: string; can_destroy: boolean
+  commenter: string | null // name when it was written
+  current_name: string | null // name now (null for anonymous)
+  created_at: string; can_destroy: boolean
 }
 type Article = {
   id: number; title: string; body: string; status: string; user_id: number
@@ -152,7 +154,12 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
 
         <div class="comment-main">
           <div class="small">
-            <span class="comment-author" :class="{ anonymous: c.anonymous }">{{ c.anonymous ? 'Ẩn danh' : c.commenter }}</span>
+            <!-- Renamed since: keep the old name, show the current one on hover / tap / keyboard focus -->
+            <a-tooltip v-if="!c.anonymous && c.current_name && c.current_name !== c.commenter"
+              :title="`Hiện tên là ${c.current_name}`" :trigger="['hover', 'click', 'focus']">
+              <span class="comment-author renamed" tabindex="0">{{ c.commenter }}</span>
+            </a-tooltip>
+            <span v-else class="comment-author" :class="{ anonymous: c.anonymous }">{{ c.anonymous ? 'Ẩn danh' : c.commenter }}</span>
             <span class="muted"> • {{ formatDateTime(c.created_at) }}</span>
           </div>
           <p class="comment-body">{{ c.body }}</p>
@@ -321,6 +328,12 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
 
 .comment-author {
   font-weight: 600;
+}
+
+/* Dotted underline + help cursor: tells the reader there is more to see here */
+.comment-author.renamed {
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
 }
 
 .comment-author.anonymous {

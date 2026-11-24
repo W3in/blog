@@ -18,7 +18,7 @@ class Api::ArticlesController < Api::BaseController
   def show
     json = @article.as_json(include: { user: AUTHOR_JSON })
     if current_user
-      comments = @article.comments.order(:created_at).map { |comment| comment.as_json_for(current_user) }
+      comments = @article.comments.includes(:user).order(:created_at).map { |comment| comment.as_json_for(current_user) }
       json.merge!("comments" => comments, "truncated" => false)
     else
       # Guests: only the beginning, no comments (comments_count still tells how many there are)
