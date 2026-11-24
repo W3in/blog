@@ -98,6 +98,7 @@ const { user, logout } = useAuth()
   font-weight: 700;
   color: rgba(0, 0, 0, 0.88);
   text-decoration: none;
+  white-space: nowrap; /* "Blog của tôi" stays on one line next to the buttons on phones */
 }
 
 .brand-icon {
@@ -151,6 +152,10 @@ const { user, logout } = useAuth()
 @media (max-width: 576px) {
   .hide-mobile {
     display: none;
+  }
+
+  .brand {
+    font-size: 17px;
   }
 }
 </style>
