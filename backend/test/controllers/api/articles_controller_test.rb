@@ -38,9 +38,10 @@ class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Private post", response.parsed_body.first["title"]
   end
 
-  test "author info has only id and name" do
+  test "author info has only id, name and avatar" do
     get "/api/articles"
-    assert_equal %w[id name], response.parsed_body.first["user"].keys.sort
+    assert_equal %w[avatar_url id name], response.parsed_body.first["user"].keys.sort
+    assert_not_includes response.body, "alice@example.com"
     assert_not_includes response.body, "password_digest"
     assert_not_includes response.body, "alice-token"
   end

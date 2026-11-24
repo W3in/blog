@@ -4,9 +4,13 @@ Rails.application.routes.draw do
     resource :session, only: [:create, :show, :destroy]                           # POST /api/session
     resource :password, only: [:create, :update]                                  # forgot / reset password
     resources :uploads, only: :create                                             # POST /api/uploads (editor images)
-    resource :profile, only: :update do                                           # PATCH /api/profile (rename)
+    # The logged-in user's own account (singular: no id in the URL, so only your own)
+    resource :profile, only: [:update, :destroy] do                               # PATCH (rename) / DELETE (delete account)
       patch :password                                                             # PATCH /api/profile/password
+      patch :email                                                                # PATCH /api/profile/email
+      resource :avatar, only: [:update, :destroy]                                 # PUT / DELETE /api/profile/avatar
     end
+    resources :users, only: :show                                                 # GET /api/users/:id (public profile)
 
     resources :articles, only: [:index, :show, :create, :update, :destroy] do
       resources :comments, only: [:create, :destroy]

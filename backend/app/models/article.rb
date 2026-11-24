@@ -42,6 +42,12 @@ class Article < ApplicationRecord
         fragment.at_css("img")&.[]("src")
     end
 
+    # One card in a list (home page, a user's profile): no body, a plain-text excerpt and the first image instead
+    def card_json
+        as_json(except: :body, include: { user: User::PUBLIC_JSON })
+            .merge("excerpt" => excerpt, "cover_image" => cover_image)
+    end
+
     # What guests get: whole blocks until ~300 characters, so formatting stays and no tag is cut in half.
     # The block that goes over the limit is shortened to plain text ending with "…"
     def preview

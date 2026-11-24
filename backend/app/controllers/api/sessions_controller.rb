@@ -13,7 +13,7 @@ class Api::SessionsController < Api::BaseController
   end
 
   def show
-    render json: current_user.slice(:id, :name, :email, :admin)
+    render json: current_user.profile_json
   end
 
   def destroy

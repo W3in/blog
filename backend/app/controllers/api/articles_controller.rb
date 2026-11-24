@@ -2,23 +2,18 @@ class Api::ArticlesController < Api::BaseController
   before_action :require_login, except: [:index, :show]
   before_action :set_article, only: [:show, :update, :destroy]
 
-  # Only id + name of the author: the users table also holds password_digest and auth_token
-  AUTHOR_JSON = { only: [:id, :name] }
-
   def index
-    # includes(:user): load all authors in one query instead of one query per article (N+1)
-    articles = Article.visible_to(current_user).includes(:user).order(created_at: :desc)
+    # includes: load all authors and their avatars in a few queries instead of a few per article (N+1)
+    articles = Article.visible_to(current_user).includes(user: { avatar_attachment: :blob }).order(created_at: :desc)
     # No body in the list: guests must not read whole articles here, and a summary is all the list shows
-    render json: articles.map { |article|
-      article.as_json(except: :body, include: { user: AUTHOR_JSON })
-        .merge("excerpt" => article.excerpt, "cover_image" => article.cover_image)
-    }
+    render json: articles.map(&:card_json)
   end
 
   def show
-    json = @article.as_json(include: { user: AUTHOR_JSON })
+    # User::PUBLIC_JSON: only id, name, avatar of the author (the users table also holds email, token, digest)
+    json = @article.as_json(include: { user: User::PUBLIC_JSON })
     if current_user
-      comments = @article.comments.includes(:user).order(:created_at).map { |comment| comment.as_json_for(current_user) }
+      comments = @article.comments.includes(user: { avatar_attachment: :blob }).order(:created_at).map { |comment| comment.as_json_for(current_user) }
       json.merge!("comments" => comments, "truncated" => false)
     else
       # Guests: only the beginning, no comments (comments_count still tells how many there are)

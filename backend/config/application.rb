@@ -26,6 +26,10 @@ module Blog
     # Rails sends the file itself instead of redirecting to another URL, so links work through the Nuxt proxy
     config.active_storage.resolve_model_to_route = :rails_storage_proxy
 
+    # Validation messages in Vietnamese (config/locales/vi.yml); a message missing there shows in English
+    config.i18n.default_locale = :vi
+    config.i18n.fallbacks = [:en]
+
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
   end

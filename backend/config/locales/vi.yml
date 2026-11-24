@@ -1,0 +1,21 @@
+# Vietnamese validation messages. The frontend shows "<label> <message>", e.g. "Tên không được để trống".
+# Anything missing here falls back to English (config.i18n.fallbacks in application.rb)
+vi:
+  errors:
+    format: "%{attribute} %{message}"
+    messages:
+      blank: "không được để trống"
+      required: "không được để trống"
+      taken: "đã có người dùng"
+      invalid: "không hợp lệ"
+      confirmation: "nhập lại không khớp"
+      inclusion: "không hợp lệ"
+      too_short: "quá ngắn (tối thiểu %{count} ký tự)"
+      too_long: "quá dài (tối đa %{count} ký tự)"
+  activerecord:
+    errors:
+      models:
+        user:
+          attributes:
+            password_challenge:
+              invalid: "không đúng"
