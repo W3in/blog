@@ -1,100 +1,161 @@
 <script setup lang="ts">
-import { message } from 'ant-design-vue'
-
+// Parent page of /profile, /profile/email, /profile/password, /profile/delete (Nuxt nested routes:
+// pages/profile.vue + the pages/profile/ folder). It draws the sidebar; <NuxtPage /> shows the chosen section.
+// The middleware here also guards every child page
 definePageMeta({ middleware: 'auth' })
-const { user, token, headers } = useAuth()
-
-// --- Rename ---
-const nameForm = reactive({ name: user.value?.name ?? '' })
-const nameErrors = ref<Record<string, string[]>>({})
-const savingName = ref(false)
-
-async function saveName() {
-  savingName.value = true
-  nameErrors.value = {}
-  try {
-    // Rails answers with the updated user: putting it in useState updates the header at once
-    user.value = await $fetch('/api/profile', { method: 'PATCH', body: { profile: nameForm }, headers: headers.value })
-    message.success('Đã đổi tên')
-  } catch (e: any) {
-    if (e.status !== 422) throw e
-    nameErrors.value = e.data
-  } finally {
-    savingName.value = false
-  }
-}
-
-// --- Change password ---
-const pwForm = reactive({ password_challenge: '', password: '', password_confirmation: '' })
-const pwErrors = ref<Record<string, string[]>>({})
-const savingPw = ref(false)
-const pwFormRef = ref()
-
-const confirmRules = [
-  { required: true, message: 'Nhập lại mật khẩu mới' },
-  {
-    validator: (_rule: any, value: string) =>
-      value === pwForm.password ? Promise.resolve() : Promise.reject('Mật khẩu nhập lại không khớp')
-  }
-]
-
-async function savePassword() {
-  savingPw.value = true
-  pwErrors.value = {}
-  try {
-    const res = await $fetch<{ token: string }>('/api/profile/password', { method: 'PATCH', body: pwForm, headers: headers.value })
-    // Rails changed the token (logging out every other device): keep this one logged in with the new one
-    token.value = res.token
-    pwFormRef.value.resetFields()
-    message.success('Đã đổi mật khẩu. Các thiết bị khác đã bị đăng xuất.')
-  } catch (e: any) {
-    if (e.status !== 422) throw e
-    pwErrors.value = e.data // { password_challenge: ["is invalid"] } when the current password is wrong
-  } finally {
-    savingPw.value = false
-  }
-}
+const { user } = useAuth()
 </script>
 
 <template>
-  <main>
-    <NuxtLink to="/" class="back-link"><ArrowLeftOutlined /> Tất cả bài viết</NuxtLink>
+  <main v-if="user" class="profile-page">
     <h1 class="page-title">Hồ sơ của tôi</h1>
 
-    <a-card title="Tên hiển thị" class="profile-card">
-      <a-form layout="vertical" :model="nameForm" @finish="saveName">
-        <a-form-item name="name" :rules="[{ required: true, min: 2, message: 'Tên từ 2 đến 50 ký tự' }]" v-bind="fieldState(nameErrors, 'name', 'Tên')">
-          <a-input v-model:value="nameForm.name" :maxlength="50" show-count autocomplete="name" />
-        </a-form-item>
-        <p class="muted hint">Bình luận cũ vẫn giữ tên lúc bạn viết; người đọc rê chuột (hoặc chạm) vào sẽ thấy tên hiện tại của bạn. Bình luận ẩn danh không bị ảnh hưởng.</p>
-        <a-button type="primary" html-type="submit" :loading="savingName">Lưu tên</a-button>
-      </a-form>
-    </a-card>
+    <div class="profile-layout">
+      <aside class="profile-side">
+        <div class="side-card">
+          <UserAvatar :name="user.name" :src="user.avatar_url" :size="72" />
+          <div class="side-info">
+            <div class="side-name">{{ user.name }}</div>
+            <div class="muted side-email">{{ user.email }}</div>
+            <div class="muted side-since">Thành viên từ {{ formatDate(user.created_at) }}</div>
+            <NuxtLink :to="`/users/${user.id}`" class="side-public"><EyeOutlined /> Xem trang công khai</NuxtLink>
+          </div>
+        </div>
 
-    <a-card title="Đổi mật khẩu" class="profile-card">
-      <a-form ref="pwFormRef" layout="vertical" :model="pwForm" @finish="savePassword">
-        <a-form-item label="Mật khẩu hiện tại" name="password_challenge" :rules="[{ required: true, message: 'Nhập mật khẩu hiện tại' }]" v-bind="fieldState(pwErrors, 'password_challenge', 'Mật khẩu hiện tại')">
-          <a-input-password v-model:value="pwForm.password_challenge" autocomplete="current-password" />
-        </a-form-item>
-        <a-form-item label="Mật khẩu mới" name="password" :rules="[{ required: true, min: 6, message: 'Ít nhất 6 ký tự' }]" v-bind="fieldState(pwErrors, 'password', 'Mật khẩu')">
-          <a-input-password v-model:value="pwForm.password" autocomplete="new-password" />
-        </a-form-item>
-        <a-form-item label="Nhập lại mật khẩu mới" name="password_confirmation" :rules="confirmRules" v-bind="fieldState(pwErrors, 'password_confirmation', 'Nhập lại')">
-          <a-input-password v-model:value="pwForm.password_confirmation" autocomplete="new-password" />
-        </a-form-item>
-        <p class="muted hint">Đổi xong, mọi thiết bị khác sẽ bị đăng xuất; máy này vẫn giữ đăng nhập.</p>
-        <a-button type="primary" html-type="submit" :loading="savingPw">Đổi mật khẩu</a-button>
-      </a-form>
-    </a-card>
+        <!-- RouterLink marks the current page with aria-current="page": the CSS styles that, screen readers read it -->
+        <nav class="side-nav" aria-label="Mục hồ sơ">
+          <NuxtLink to="/profile" class="side-link"><UserOutlined /> Thông tin cá nhân</NuxtLink>
+          <NuxtLink to="/profile/email" class="side-link"><MailOutlined /> Email</NuxtLink>
+          <NuxtLink to="/profile/password" class="side-link"><LockOutlined /> Mật khẩu</NuxtLink>
+          <NuxtLink to="/profile/delete" class="side-link danger"><DeleteOutlined /> Xóa tài khoản</NuxtLink>
+        </nav>
+      </aside>
+
+      <section class="profile-main">
+        <NuxtPage />
+      </section>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.profile-card {
-  margin-bottom: 16px;
+.profile-layout {
+  display: grid;
+  /* fixed sidebar, the section takes the rest. minmax(0, …): a plain 1fr never shrinks below its content,
+     so the one-line menu on phones would push the whole page wider than the screen */
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
 }
 
-.hint {
-  margin-bottom: 16px;
+/* Stays in view while a long section scrolls (60px header + a little space) */
+.profile-side {
+  position: sticky;
+  top: 76px;
+}
+
+.side-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+}
+
+.side-info {
+  min-width: 0; /* lets long names/emails wrap inside the card on phones */
+}
+
+.side-name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere; /* a 50-letter name without spaces still wraps */
+}
+
+.side-email {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.side-since {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.side-public {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 6px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.side-link:hover {
+  background: #f5f5f5;
+}
+
+.side-link[aria-current='page'] {
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 600;
+}
+
+.side-link.danger {
+  color: #ff4d4f;
+}
+
+.side-link.danger[aria-current='page'] {
+  background: #fff1f0;
+}
+
+/* Phones and narrow tablets: sidebar on top, the menu becomes one row you can swipe sideways */
+@media (max-width: 720px) {
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .profile-side {
+    position: static;
+  }
+
+  /* Avatar on the left, the text beside it */
+  .side-card {
+    flex-direction: row;
+    gap: 16px;
+    padding: 16px;
+    text-align: left;
+  }
+
+  .side-nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
 }
 </style>

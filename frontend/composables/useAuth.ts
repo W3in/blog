@@ -1,4 +1,4 @@
-type User = { id: number; name: string; email: string; admin: boolean }
+type User = { id: number; name: string; email: string; admin: boolean; created_at: string; avatar_url: string | null }
 
 export function useAuth() {
     // Cookie (not localStorage) so the server-side render also knows who is logged in

@@ -4,13 +4,14 @@ type Comment = {
   id: number; body: string; anonymous: boolean
   commenter: string | null // name when it was written
   current_name: string | null // name now (null for anonymous)
+  avatar_url: string | null
   created_at: string; can_destroy: boolean
 }
 type Article = {
   id: number; title: string; body: string; status: string; user_id: number
   created_at: string; updated_at: string; comments_count: number
   truncated: boolean // guests: body is only the beginning
-  user: { id: number; name: string } | null
+  user: { id: number; name: string; avatar_url: string | null } | null
   comments?: Comment[] // missing for guests
 }
 
@@ -73,9 +74,10 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
 
     <article class="post">
       <header class="post-meta">
-        <a-avatar :style="{ backgroundColor: avatarColor(article.user?.name) }">{{ initial(article.user?.name) }}</a-avatar>
+        <UserAvatar :name="article.user?.name" :src="article.user?.avatar_url" />
         <div>
-          <div class="post-author">{{ article.user?.name ?? 'Không rõ' }}</div>
+          <NuxtLink v-if="article.user" :to="`/users/${article.user.id}`" class="post-author">{{ article.user.name }}</NuxtLink>
+          <div v-else class="post-author">Không rõ</div>
           <div class="muted small">
             {{ formatDate(article.created_at) }}
             <!-- Rails sets both timestamps to the same value on create, so different means edited -->
@@ -150,7 +152,7 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
         <a-avatar v-if="c.anonymous" size="small" class="comment-avatar" :style="{ backgroundColor: '#8c8c8c' }">
           <template #icon><UserOutlined /></template>
         </a-avatar>
-        <a-avatar v-else size="small" class="comment-avatar" :style="{ backgroundColor: avatarColor(c.commenter) }">{{ initial(c.commenter) }}</a-avatar>
+        <UserAvatar v-else :name="c.commenter" :src="c.avatar_url" size="small" class="comment-avatar" />
 
         <div class="comment-main">
           <div class="small">
@@ -191,7 +193,14 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
 }
 
 .post-author {
+  display: block;
   font-weight: 600;
+  color: inherit; /* a link to the author's page, but it reads as a name */
+  text-decoration: none;
+}
+
+a.post-author:hover {
+  text-decoration: underline;
 }
 
 /* Tag pushed to the right end of the author row */

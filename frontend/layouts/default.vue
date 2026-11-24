@@ -24,14 +24,15 @@ const { user, logout } = useAuth()
             <!-- Name + logout live in a menu, so the header stays one short row on phones -->
             <a-dropdown placement="bottomRight" :trigger="['click']">
               <button type="button" class="user-menu">
-                <a-avatar size="small" :style="{ backgroundColor: '#1677ff' }">{{ user.name[0]?.toUpperCase() }}</a-avatar>
+                <UserAvatar :name="user.name" :src="user.avatar_url" size="small" />
                 <span class="hide-mobile">{{ user.name }}</span>
                 <DownOutlined class="caret" />
               </button>
               <template #overlay>
                 <a-menu>
                   <a-menu-item key="email" disabled>{{ user.email }}</a-menu-item>
-                  <a-menu-item key="profile" @click="navigateTo('/profile')"><UserOutlined /> Hồ sơ của tôi</a-menu-item>
+                  <a-menu-item key="page" @click="navigateTo(`/users/${user.id}`)"><IdcardOutlined /> Trang cá nhân</a-menu-item>
+                  <a-menu-item key="profile" @click="navigateTo('/profile')"><SettingOutlined /> Hồ sơ của tôi</a-menu-item>
                   <a-menu-divider />
                   <a-menu-item key="logout" danger @click="logout"><LogoutOutlined /> Đăng xuất</a-menu-item>
                 </a-menu>

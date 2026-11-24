@@ -30,6 +30,13 @@ main {
   color: rgba(0, 0, 0, 0.45);
 }
 
+/* A column of post cards (home page, a user's page) */
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Rounded grey label, e.g. "💬 3 bình luận" under a post */
 .pill {
   display: inline-flex;
