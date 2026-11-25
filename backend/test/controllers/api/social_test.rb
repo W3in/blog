@@ -139,4 +139,38 @@ class Api::SocialTest < ActionDispatch::IntegrationTest
     get "/api/articles"
     assert_equal 1, response.parsed_body.find { |a| a["id"] == @article.id }["likes_count"]
   end
+
+  test "a heart notifies the author once, never yourself, and taking it back removes it" do
+    assert_difference -> { users(:alice).notifications.count } => 1 do
+      2.times { post "/api/articles/#{@article.id}/like", headers: auth(users(:bob)) }
+    end
+    assert_no_difference -> { Notification.count } do
+      post "/api/articles/#{@article.id}/like", headers: auth(users(:alice)) # bài của chính Alice
+    end
+
+    get "/api/notifications", headers: auth(users(:alice))
+    item = response.parsed_body["items"].first
+    assert_equal ["like", "Bob", @article.id, nil], [item["kind"], item.dig("actor", "name"), item.dig("article", "id"), item["comment_id"]]
+
+    assert_difference -> { users(:alice).notifications.count } => -1 do
+      delete "/api/articles/#{@article.id}/like", headers: auth(users(:bob))
+    end
+  end
+
+  test "a heart on an anonymous comment points to it and still names who gave the heart" do
+    mine = comment(users(:bob), "Ẩn danh nè", anonymous: true)
+    post "/api/articles/#{@article.id}/comments/#{mine.id}/like", headers: auth(users(:admin))
+
+    get "/api/notifications", headers: auth(users(:bob))
+    item = response.parsed_body["items"].first
+    assert_equal ["like", mine.id, "Admin", "Ẩn danh nè"], [item["kind"], item["comment_id"], item.dig("actor", "name"), item["excerpt"]]
+  end
+
+  test "deleting a hearted article also deletes its heart notifications" do
+    post "/api/articles/#{@article.id}/like", headers: auth(users(:bob))
+    assert_difference -> { Notification.where(kind: "like").count } => -1 do
+      delete "/api/articles/#{@article.id}", headers: auth(users(:alice))
+    end
+  end
+
 end

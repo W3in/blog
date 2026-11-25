@@ -4,7 +4,7 @@ class Api::NotificationsController < Api::BaseController
   # GET /api/notifications -> { unread_count, items: the 30 newest }
   def index
     items = current_user.notifications
-      .includes(actor: { avatar_attachment: :blob }, comment: :article) # avoid N+1 for names, avatars, titles
+      .includes(actor: { avatar_attachment: :blob }, comment: :article, like: :likeable) # avoid N+1 for names, avatars, titles
       .order(created_at: :desc).limit(30)
     render json: { unread_count: current_user.notifications.unread.count, items: items.map(&:as_json_for_recipient) }
   end

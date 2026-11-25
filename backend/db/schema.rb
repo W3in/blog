@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_11_24_090003) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_25_055651) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -82,12 +82,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_24_090003) do
     t.integer "recipient_id", null: false
     t.integer "actor_id", null: false
     t.string "kind", null: false
-    t.integer "comment_id", null: false
+    t.integer "comment_id"
     t.datetime "read_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "like_id"
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
     t.index ["comment_id"], name: "index_notifications_on_comment_id"
+    t.index ["like_id"], name: "index_notifications_on_like_id"
     t.index ["recipient_id", "read_at"], name: "index_notifications_on_recipient_id_and_read_at"
     t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
   end
@@ -113,6 +115,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_24_090003) do
   add_foreign_key "comments", "users"
   add_foreign_key "likes", "users"
   add_foreign_key "notifications", "comments"
+  add_foreign_key "notifications", "likes", on_delete: :cascade
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "notifications", "users", column: "recipient_id"
 end

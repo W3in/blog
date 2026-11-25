@@ -20,13 +20,16 @@ function onOpenChange(value: boolean) {
   if (value) markAllRead()
 }
 
-const describe = (n: Notice) => (n.kind === 'reply' ? 'đã trả lời bình luận của bạn trong' : 'đã bình luận bài viết')
+function describe(n: Notice) {
+  if (n.kind === 'like') return n.comment_id ? 'đã thích bình luận của bạn trong' : 'đã thích bài viết'
+  return n.kind === 'reply' ? 'đã trả lời bình luận của bạn trong' : 'đã bình luận bài viết'
+}
 
 async function go(n: Notice) {
   open.value = false
   // #comment-12: the article page scrolls to that comment and flashes it
-  await navigateTo(`/articles/${n.article.id}#comment-${n.comment_id}`)
-}
+    await navigateTo(n.comment_id ? `/articles/${n.article.id}#comment-${n.comment_id}` : `/articles/${n.article.id}`)
+} 
 </script>
 
 <template>
@@ -55,7 +58,7 @@ async function go(n: Notice) {
                   <strong>{{ n.actor?.name ?? 'Ẩn danh' }}</strong> {{ describe(n) }}
                   <strong>{{ n.article.title }}</strong>
                 </span>
-                <span class="item-excerpt">“{{ n.excerpt }}”</span>
+                <span v-if="n.excerpt" class="item-excerpt">“{{ n.excerpt }}”</span>
                 <span class="item-time">{{ timeAgo(n.created_at) }}</span>
               </span>
               <span v-if="!n.read" class="dot" aria-label="Chưa đọc" />
