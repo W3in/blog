@@ -55,10 +55,11 @@ main {
   font-size: 16px;
   line-height: 1.75;
   color: rgba(0, 0, 0, 0.85);
-  overflow-wrap: anywhere; /* long URLs wrap instead of widening the page on phones */
+  overflow-wrap: anywhere;
+  /* long URLs wrap instead of widening the page on phones */
 }
 
-.rich-content > :first-child {
+.rich-content> :first-child {
   margin-top: 0;
 }
 
@@ -85,7 +86,7 @@ main {
 }
 
 /* The editor puts a <p> inside each <li>: no paragraph gap between list items */
-.rich-content li > p {
+.rich-content li>p {
   margin: 0;
 }
 
@@ -102,6 +103,14 @@ main {
   height: auto;
   margin: 1em auto;
   border-radius: 8px;
+}
+
+.rich-content img[data-align="left"] {
+  margin-left: 0;
+}
+
+.rich-content img[data-align="right"] {
+  margin-right: 0;
 }
 
 .rich-content a {

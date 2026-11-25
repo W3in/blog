@@ -84,4 +84,11 @@ class ArticleTest < ActiveSupport::TestCase
   test "admins see everything" do
     assert_equal 3, Article.visible_to(users(:admin)).count
   end
+
+  test "image alignment keeps only left, center and right" do
+    article = users(:alice).articles.create!(title: "T", body: '<p>Some text here</p><img src="/api/files/a.png" data-align="right"><img src="/api/files/b.png" data-align="evil">')
+    assert_includes article.body, 'data-align="right"'
+    assert_not_includes article.body, "evil"
+  end
+
 end

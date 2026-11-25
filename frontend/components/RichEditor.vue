@@ -36,6 +36,20 @@ const FONTS = [
   { name: 'Máy đánh chữ', value: 'ui-monospace, monospace' }
 ]
 
+const ALIGNS = ['left', 'center', 'right'] 
+const AlignedImage = Image.extend({
+  addAttributes(){
+    return {
+      ...this.parent?.(),
+      align: {
+        default: null,
+        parseHTML: element => ALIGNS.includes(element.dataset.align ?? '') ? element.dataset.align : null,
+        renderHTML: attrs => attrs.align ? { 'data-align': attrs.align } : {}
+      }
+    }
+  }
+})
+
 // useEditor builds the editor in the browser only (after mount), so on the server `editor` is undefined
 const editor = useEditor({
   content: props.modelValue,
@@ -45,7 +59,7 @@ const editor = useEditor({
       link: { openOnClick: false, autolink: true, defaultProtocol: 'https' }
     }),
     // resize: drag a corner of a selected image; the size is saved as width/height on the <img>
-    Image.configure({
+    AlignedImage.configure({
       resize: { enabled: true, directions: ['top-left', 'top-right', 'bottom-left', 'bottom-right'], minWidth: 80, minHeight: 60, alwaysPreserveAspectRatio: true }
     }),
     TextStyle, Color, BackgroundColor, FontFamily, // <span style="color / background-color / font-family">
@@ -155,6 +169,14 @@ function resizeImage(width: number | null) {
     img.style.height = attrs.height ? `${attrs.height}px` : ''
   }
 }
+
+function align(value: 'left' | 'center' | 'right') {
+  if (active('image')) run().updateAttributes('image', { align: value === 'center' ? null : value }).run()
+  else run().setTextAlign(value).run()
+}
+const isAligned = (value: string) =>
+  active('image') ? (editor.value?.getAttributes('image').align ?? 'center') === value : active({ textAlign: value })
+
 </script>
 
 <template>
@@ -208,9 +230,9 @@ function resizeImage(width: number | null) {
 
       <button type="button" class="tool text" :class="{ on: active('heading', { level: 2 }) }" :disabled="!editor" title="Tiêu đề lớn" aria-label="Tiêu đề lớn" @click="run().toggleHeading({ level: 2 }).run()">H2</button>
       <button type="button" class="tool text" :class="{ on: active('heading', { level: 3 }) }" :disabled="!editor" title="Tiêu đề nhỏ" aria-label="Tiêu đề nhỏ" @click="run().toggleHeading({ level: 3 }).run()">H3</button>
-      <button type="button" class="tool" :class="{ on: active({ textAlign: 'left' }) }" :disabled="!editor" title="Căn trái" aria-label="Căn trái" @click="run().setTextAlign('left').run()"><AlignLeftOutlined /></button>
-      <button type="button" class="tool" :class="{ on: active({ textAlign: 'center' }) }" :disabled="!editor" title="Căn giữa" aria-label="Căn giữa" @click="run().setTextAlign('center').run()"><AlignCenterOutlined /></button>
-      <button type="button" class="tool" :class="{ on: active({ textAlign: 'right' }) }" :disabled="!editor" title="Căn phải" aria-label="Căn phải" @click="run().setTextAlign('right').run()"><AlignRightOutlined /></button>
+      <button type="button" class="tool" :class="{ on: isAligned('left') }" :disabled="!editor" title="Căn trái" aria-label="Căn trái" @click="align('left')"><AlignLeftOutlined /></button>
+      <button type="button" class="tool" :class="{ on: isAligned('center') }" :disabled="!editor" title="Căn giữa" aria-label="Căn giữa" @click="align('center')"><AlignCenterOutlined /></button>
+      <button type="button" class="tool" :class="{ on: isAligned('right') }" :disabled="!editor" title="Căn phải" aria-label="Căn phải" @click="align('right')"><AlignRightOutlined /></button>
       <span class="sep" />
 
       <button type="button" class="tool" :class="{ on: active('bulletList') }" :disabled="!editor" title="Danh sách chấm" aria-label="Danh sách chấm" @click="run().toggleBulletList().run()"><UnorderedListOutlined /></button>
@@ -413,6 +435,9 @@ function resizeImage(width: number | null) {
   justify-content: center;
   margin: 1em 0;
 }
+
+.editor-body :deep([data-resize-container]:has(img[data-align="left"])) { justify-content: flex-start; }
+.editor-body :deep([data-resize-container]:has(img[data-align="right"])) { justify-content: flex-end; }
 
 .editor-body :deep([data-resize-wrapper] img) {
   margin: 0;

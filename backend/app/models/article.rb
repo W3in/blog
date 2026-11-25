@@ -4,7 +4,8 @@ class Article < ApplicationRecord
 
     # What the editor may produce. Everything else (<script>, onclick=...) is removed before saving
     ALLOWED_TAGS = %w[p br strong em s u h2 h3 ul ol li blockquote pre code a img hr span]
-    ALLOWED_ATTRIBUTES = %w[href src alt title target rel width height style]
+    ALLOWED_ATTRIBUTES = %w[href src alt title target rel width height style data-align]
+    IMAGE_ALIGNS = %w[left center right]
     # Inside style="": only text color, highlight, font and alignment (no width: 9999px, float, margin...)
     ALLOWED_CSS = %w[color background-color font-family text-align]
     TITLE_MAX = 300
@@ -90,6 +91,7 @@ class Article < ApplicationRecord
                 rules = node["style"].split(";").select { |rule| ALLOWED_CSS.include?(rule.split(":").first.to_s.strip.downcase) }
                 rules.empty? ? node.remove_attribute("style") : node["style"] = rules.map(&:strip).join("; ")
             end
+            doc.css("[data-align]").each { |node| node.remove_attribute("data-align") unless IMAGE_ALIGNS.include?(node["data-align"]) }
             self.body = doc.to_html
         end
 
