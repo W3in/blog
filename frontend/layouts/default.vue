@@ -44,7 +44,7 @@ const { user, logout } = useAuth()
 
           <template v-else>
             <NuxtLink v-slot="{ href, navigate }" to="/login" custom>
-              <a-button type="text" :href="href" @click="navigate">Đăng nhập</a-button>
+              <a-button type="primary" :href="href" @click="navigate">Đăng nhập</a-button>
             </NuxtLink>
             <NuxtLink v-slot="{ href, navigate }" to="/register" custom>
               <a-button type="primary" :href="href" @click="navigate">Đăng ký</a-button>
