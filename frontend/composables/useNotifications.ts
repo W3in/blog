@@ -4,7 +4,7 @@ export type Notice = {
   read: boolean
   created_at: string
   actor: { id: number; name: string; avatar_url: string | null } | null // null: anonymous comment
-  article: { id: number; title: string }
+  article: { id: number; slug: string; title: string }
   comment_id: number | null
   excerpt: string | null
 }

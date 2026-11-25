@@ -137,7 +137,7 @@ class Api::SocialTest < ActionDispatch::IntegrationTest
   test "the home page cards carry the heart count" do
     post "/api/articles/#{@article.id}/like", headers: auth(users(:bob))
     get "/api/articles"
-    assert_equal 1, response.parsed_body.find { |a| a["id"] == @article.id }["likes_count"]
+    assert_equal 1, response.parsed_body["items"].find { |a| a["id"] == @article.id }["likes_count"]
   end
 
   test "a heart notifies the author once, never yourself, and taking it back removes it" do

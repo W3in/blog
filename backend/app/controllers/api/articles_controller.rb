@@ -2,16 +2,30 @@ class Api::ArticlesController < Api::BaseController
   before_action :require_login, except: [:index, :show]
   before_action :set_article, only: [:show, :update, :destroy]
 
-  def index
-    # includes: load all authors and their avatars in a few queries instead of a few per article (N+1)
-    articles = Article.visible_to(current_user).includes(user: { avatar_attachment: :blob }).order(created_at: :desc)
-    # No body in the list: guests must not read whole articles here, and a summary is all the list shows
-    render json: articles.map(&:card_json)
-  end
+  PER_PAGE = 10
 
+  def index
+    # Search goes on top of visible_to: it can only narrow what this viewer may see, never widen it
+    articles = Article.visible_to(current_user)
+    articles = articles.search(params[:q]) if params[:q].present?
+
+    # Missing, "abc", "0", "-3" -> page 1; the upper bound stops an absurd number
+    page = params[:page].to_i.clamp(1, 100_000)
+    # id breaks ties: articles with the same created_at keep one fixed order, so none shows on two pages
+    items = articles.includes(user: { avatar_attachment: :blob })
+                    .order(created_at: :desc, id: :desc)
+                    .limit(PER_PAGE).offset((page - 1) * PER_PAGE)
+
+    render json: {
+      items: items.map(&:card_json),
+      total: articles.count, # every match, not just this page: the page buttons need it
+      page: page,
+      per_page: PER_PAGE
+    }
+  end
   def show
     # User::PUBLIC_JSON: only id, name, avatar of the author (the users table also holds email, token, digest)
-    json = @article.as_json(include: { user: User::PUBLIC_JSON })
+    json = @article.as_json(methods: :slug, except: :search_title , include: { user: User::PUBLIC_JSON })
     if current_user
       comments = @article.comments.includes(user: { avatar_attachment: :blob }).order(:created_at)
       # Which of these this viewer hearted: one query for all comments, kept as a Set for fast include?
@@ -33,7 +47,7 @@ class Api::ArticlesController < Api::BaseController
     article = current_user.articles.new(article_params)
 
     if article.save
-      render json: article, status: :created
+      render json: article.as_json(methods: :slug, except: :search_title), status: :created
     else
       render json: article.errors, status: :unprocessable_content
     end
@@ -43,7 +57,7 @@ class Api::ArticlesController < Api::BaseController
     return head :forbidden unless @article.user == current_user
 
     if @article.update(article_params)
-      render json: @article
+      render json: @article.as_json(methods: :slug, except: :search_title)
     else
       render json: @article.errors, status: :unprocessable_content
     end

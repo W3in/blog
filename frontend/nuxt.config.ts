@@ -11,7 +11,8 @@ export default defineNuxtConfig({
   antd: { extractStyle: true },
   // Forward /api/* to Rails so the browser never calls another origin (no CORS setup needed)
   routeRules: {
-    '/api/**': { proxy: `${process.env.API_URL ?? 'http://localhost:3000'}/api/**` }
+    '/api/**': { proxy: `${process.env.API_URL ?? 'http://localhost:3000'}/api/**` },
+    '/articles': { redirect: { to: '/', statusCode: 301 } },
   },
   // Ant Design's reset first (removes browser default margins/fonts), then our own rules.
   // Fonts for the editor's font menu, served from our own site (no request to Google); each file

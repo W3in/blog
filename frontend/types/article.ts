@@ -4,4 +4,5 @@ export type ArticleItem = {
   excerpt: string; cover_image: string | null; comments_count: number; likes_count: number
   created_at: string
   user: { id: number; name: string; avatar_url: string | null; deleted: boolean } | null
+  slug: string
 }

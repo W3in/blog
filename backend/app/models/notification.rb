@@ -24,7 +24,7 @@ class Notification < ApplicationRecord
       read: read_at.present?,
       created_at: created_at,
       actor: kind != "like" && comment.anonymous ? nil : actor.as_json(User::PUBLIC_JSON),
-      article: { id: article.id, title: article.title },
+      article: { id: article.id, slug: article.slug, title: article.title },
       comment_id: comment_id,
       excerpt: comment&.body&.truncate(80)
     }

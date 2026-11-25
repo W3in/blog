@@ -6,6 +6,7 @@ const props = defineProps<{
   errors?: Record<string, string[]>
   submitLabel?: string
   cancelTo?: string
+  loading?: boolean
 }>()
 const emit = defineEmits<{ submit: [Article] }>()
 
@@ -38,7 +39,7 @@ const form = reactive<Article>({
         <NuxtLink v-if="cancelTo" v-slot="{ href, navigate }" :to="cancelTo" custom>
           <a-button :href="href" @click="navigate">Hủy</a-button>
         </NuxtLink>
-        <a-button type="primary" html-type="submit">{{ submitLabel ?? 'Lưu' }}</a-button>
+        <a-button type="primary" html-type="submit" :loading="loading">{{ submitLabel ?? 'Lưu' }}</a-button>
       </a-space>
     </div>
   </a-form>

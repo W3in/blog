@@ -2,6 +2,7 @@
 
 public_post:
   title: Public post
+  search_title: public post
   body: Everyone can read this article.
   status: public
   user: alice
@@ -9,12 +10,14 @@ public_post:
 
 private_post:
   title: Private post
+  search_title: private post
   body: Only logged-in members can read this.
   status: private
   user: alice
 
 archived_post:
   title: Archived post
+  search_title: archived post
   body: Only Alice and admins can read this.
   status: archived
   user: alice

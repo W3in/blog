@@ -28,7 +28,7 @@ function describe(n: Notice) {
 async function go(n: Notice) {
   open.value = false
   // #comment-12: the article page scrolls to that comment and flashes it
-    await navigateTo(n.comment_id ? `/articles/${n.article.id}#comment-${n.comment_id}` : `/articles/${n.article.id}`)
+    await navigateTo(n.comment_id ? `/articles/${n.article.slug}#comment-${n.comment_id}` : `/articles/${n.article.slug}`)
 } 
 </script>
 

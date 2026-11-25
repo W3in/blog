@@ -9,10 +9,11 @@ type Article = {
   truncated: boolean // guests: body is only the beginning
   user: { id: number; name: string; avatar_url: string | null; deleted: boolean } | null
   comments?: CommentItem[] // missing for guests
+  slug: string
 }
 
 const { headers, user } = useAuth()
-const id = useRoute().params.id as string
+const id = String(useRoute().params.id).match(/\d+$/)?.[0]
 const { data: article, refresh, error } = await useFetch<Article>(`/api/articles/${id}`, { headers })
 if (error.value) {
   throw createError({

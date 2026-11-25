@@ -91,4 +91,10 @@ class ArticleTest < ActiveSupport::TestCase
     assert_not_includes article.body, "evil"
   end
 
+  test "slug is the title without accents, then the id at the end (like VnExpress)" do
+    assert_equal "da-lat-mua-mua-an-gi-6", Article.new(id: 6, title: "Đà Lạt mùa mưa: Ăn gì?").slug
+    assert_equal "5-thu-doan-trong-nam-2026-9", Article.new(id: 9, title: "5 thủ đoạn trong năm 2026").slug
+    assert_equal "7", Article.new(id: 7, title: "😀😀").slug # nothing readable: just the id
+  end
+
 end

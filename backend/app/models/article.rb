@@ -18,6 +18,7 @@ class Article < ApplicationRecord
     has_many :likes, as: :likeable, dependent: :delete_all
 
     before_validation :sanitize_body
+    before_save { self.search_title = Article.unaccent(title) }
 
     validates :title, presence: true, length: { maximum: TITLE_MAX }
     validates :status, inclusion: { in: STATUSES }
@@ -44,9 +45,22 @@ class Article < ApplicationRecord
         fragment.at_css("img")&.[]("src")
     end
 
+    def self.unaccent(text)
+        text.to_s.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").tr("Đđ", "Dd").downcase
+    end
+
+    def self.search(query)
+        where("search_title LIKE ? ESCAPE '\\'", "%#{sanitize_sql_like(unaccent(query).squish)}%")
+    end
+
+    def slug
+        words = Article.unaccent(title).parameterize.truncate(60, separator: "-", omission: "")
+        [words.presence, id].compact.join("-")
+    end
+
     # One card in a list (home page, a user's profile): no body, a plain-text excerpt and the first image instead
     def card_json
-        as_json(except: :body, include: { user: User::PUBLIC_JSON })
+        as_json(except: [:body, :search_title], methods: :slug,  include: { user: User::PUBLIC_JSON })
             .merge("excerpt" => excerpt, "cover_image" => cover_image)
     end
 

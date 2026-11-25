@@ -3,7 +3,7 @@ require "test_helper"
 # One test per row of the permission table in CLAUDE.md
 class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
   def titles
-    response.parsed_body.map { |a| a["title"] }.sort
+    response.parsed_body["items"].map { |a| a["title"] }.sort
   end
 
   def valid_article
@@ -35,12 +35,12 @@ class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
   test "list is newest first" do
     articles(:private_post).update_column(:created_at, 1.minute.from_now)
     get "/api/articles", headers: auth(users(:bob))
-    assert_equal "Private post", response.parsed_body.first["title"]
+    assert_equal "Private post", response.parsed_body["items"].first["title"]
   end
 
   test "author info has only id, name, avatar and the deleted flag" do
     get "/api/articles"
-    assert_equal %w[avatar_url deleted id name], response.parsed_body.first["user"].keys.sort
+    assert_equal %w[avatar_url deleted id name], response.parsed_body["items"].first["user"].keys.sort
     assert_not_includes response.body, "alice@example.com"
     assert_not_includes response.body, "password_digest"
     assert_not_includes response.body, "alice-token"
@@ -66,7 +66,7 @@ class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
   test "list sends a summary and a thumbnail, never the whole body" do
     articles(:public_post).update!(body: "<p>Hello &amp; welcome to this post</p><p><img src=\"/api/files/a.png\"></p>")
     get "/api/articles"
-    item = response.parsed_body.first
+    item = response.parsed_body["items"].first
     assert_not item.key?("body")
     assert_equal "Hello & welcome to this post", item["excerpt"]
     assert_equal "/api/files/a.png", item["cover_image"]
@@ -196,4 +196,71 @@ class Api::ArticlesControllerTest < ActionDispatch::IntegrationTest
     delete "/api/articles/#{articles(:public_post).id}"
     assert_response :unauthorized
   end
+
+  test "search finds titles with or without Vietnamese accents" do
+    articles(:public_post).update!(title: "Đà Lạt mùa mưa")
+    ["da lat", "ĐÀ LẠT", "đà lạt", "  mua   mua "].each do |q|
+      get "/api/articles", params: { q: q }
+      assert_equal ["Đà Lạt mùa mưa"], titles, "searching #{q.inspect}"
+    end
+  end
+
+  test "search only looks inside what this viewer may see" do
+    get "/api/articles", params: { q: "post" } # all three titles contain "post"
+    assert_equal ["Public post"], titles
+  end
+
+  test "a typed % or _ is a letter, not a wildcard" do
+    articles(:public_post).update!(title: "Giảm 50% hôm nay")
+    get "/api/articles", params: { q: "50%" }
+    assert_equal ["Giảm 50% hôm nay"], titles
+    get "/api/articles", params: { q: "%" }, headers: auth(users(:admin))
+    assert_equal ["Giảm 50% hôm nay"], titles # not every title
+    get "/api/articles", params: { q: "_" }, headers: auth(users(:admin))
+    assert_equal [], titles # "_" would mean "any one letter" without the escape
+  end
+
+  # --- Pages ---
+  test "pages of PER_PAGE, newest first, with the total" do
+    12.times { |i| users(:bob).articles.create!(title: "Bob #{i}", body: "Long enough body", created_at: i.minutes.from_now) }
+    get "/api/articles", params: { page: 1 }
+    assert_equal 10, response.parsed_body["items"].size
+    assert_equal 13, response.parsed_body["total"]
+    assert_equal "Bob 11", response.parsed_body["items"].first["title"]
+    get "/api/articles", params: { page: 2 }
+    assert_equal 3, response.parsed_body["items"].size
+  end
+
+  test "articles with the same created_at never show up on two pages" do
+    same_time = 1.hour.from_now
+    15.times { |i| users(:bob).articles.create!(title: "Same #{i}", body: "Long enough body", created_at: same_time) }
+    ids = (1..2).flat_map { |page| get("/api/articles", params: { page: page }); response.parsed_body["items"].map { |a| a["id"] } }
+    assert_equal 16, ids.size
+    assert_equal ids.uniq.size, ids.size # no article twice
+  end
+
+  test "a strange page number falls back to a real page" do
+    ["abc", "0", "-3", "2.5", "99999999999999999999"].each do |page|
+      get "/api/articles", params: { page: page }
+      assert_response :ok
+    end
+    get "/api/articles", params: { page: "99" } # past the end: empty, but the real total
+    assert_equal [], response.parsed_body["items"]
+    assert_equal 1, response.parsed_body["total"]
+  end
+
+  test "search and pages work together" do
+    12.times { |i| users(:bob).articles.create!(title: "Đà Lạt #{i}", body: "Long enough body") }
+    get "/api/articles", params: { q: "da lat", page: 2 }
+    assert_equal 12, response.parsed_body["total"]
+    assert_equal 2, response.parsed_body["items"].size
+  end
+
+  test "the internal search column is never sent" do
+    get "/api/articles"
+    assert_not_includes response.parsed_body["items"].first.keys, "search_title"
+    get "/api/articles/#{articles(:public_post).id}"
+    assert_not_includes response.parsed_body.keys, "search_title"
+  end
+
 end

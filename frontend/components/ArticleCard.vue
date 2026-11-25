@@ -6,7 +6,7 @@ defineProps<{ item: ArticleItem }>()
 </script>
 
 <template>
-  <NuxtLink :to="`/articles/${item.id}`" class="post-card">
+  <NuxtLink :to="`/articles/${item.slug}`" class="post-card">
     <div class="card-main">
       <div class="card-meta">
         <UserAvatar :name="item.user?.name" :src="item.user?.avatar_url" size="small" />
