@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CommentItem, ThreadContext } from '~/types/comment'
-
+import { Modal } from 'ant-design-vue'
 // One comment and, below it, its replies, each drawn by this same component (recursion), Reddit-style
 const props = defineProps<{ comment: CommentItem; depth: number }>()
 
@@ -28,6 +28,19 @@ const likeUrl = computed(() => `/api/articles/${thread.articleId}/comments/${pro
 async function destroy() {
   await $fetch(`/api/articles/${thread.articleId}/comments/${props.comment.id}`, { method: 'DELETE', headers: headers.value })
   await thread.refresh()
+}
+
+function confirmDestroy() {
+  Modal.confirm(
+    {
+      title: 'Xác nhận xóa bình luận',
+      content: 'Bạn có chắc chắn muốn xóa bình luận này không?',
+      okText: 'Xóa',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: destroy,
+    }
+  )
 }
 
 async function onPosted() {
@@ -66,9 +79,9 @@ async function onPosted() {
           <template v-if="!comment.deleted">
             <LikeButton :url="likeUrl" :count="comment.likes_count" :liked="comment.liked" small />
             <button v-if="user" type="button" class="action" @click="replying = !replying"><MessageOutlined /> Trả lời</button>
-            <a-popconfirm v-if="comment.can_destroy" title="Xóa bình luận này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroy">
-              <button type="button" class="action danger"><DeleteOutlined /> Xóa</button>
-            </a-popconfirm>
+            <a-button v-if="comment.can_destroy" type="text" danger @click="confirmDestroy">
+              <DeleteOutlined /> Xóa
+            </a-button>
           </template>
           <button v-if="children.length && collapsed" type="button" class="action expand" @click="collapsed = false">
             <PlusCircleOutlined /> {{ countAll(comment.id) }} trả lời

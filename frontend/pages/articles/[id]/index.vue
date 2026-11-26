@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CommentItem, ThreadContext } from '~/types/comment'
-
+import { Modal } from 'ant-design-vue'
 // Rails decides what each viewer gets: no names/ids for anonymous comments, can_destroy and liked per comment
 type Article = {
   id: number; title: string; body: string; status: string; user_id: number
@@ -49,6 +49,19 @@ async function destroyArticle() {
   await navigateTo('/')
 }
 
+function confirmDestroy() {
+  Modal.confirm(
+    {
+      title: 'Xác nhận xóa bài viết',
+      content: 'Bạn có chắc chắn muốn xóa bài viết này không?',
+      okText: 'Xóa',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: destroyArticle,
+    }
+  )
+}
+
 // Guests come back to this article after logging in
 const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/${id}` } }))
 </script>
@@ -89,9 +102,9 @@ const loginTo = computed(() => ({ path: '/login', query: { redirect: `/articles/
           <NuxtLink v-if="isAuthor" v-slot="{ href, navigate }" :to="`/articles/${id}/edit`" custom>
             <a-button type="text" :href="href" @click="navigate"><EditOutlined /> Sửa</a-button>
           </NuxtLink>
-          <a-popconfirm v-if="canDestroyArticle" title="Xóa bài viết này?" ok-text="Xóa" cancel-text="Hủy" @confirm="destroyArticle">
-            <a-button type="text" danger><DeleteOutlined /> Xóa</a-button>
-          </a-popconfirm>
+          <a-button v-if="canDestroyArticle" type ="text" danger @click="confirmDestroy">
+            <DeleteOutlined /> Xóa
+          </a-button>
         </a-space>
       </footer>
     </article>
